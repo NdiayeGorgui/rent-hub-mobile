@@ -2,7 +2,8 @@ import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@/src/context/AuthContext";
 import { View } from "react-native";
-import { NotificationBell, PremiumButton } from "../TopBarButtons";
+import { NotificationBell, PremiumButton ,MessageInboxButton} from "../TopBarButtons";
+
 
 
 export default function TabsLayout() {
@@ -21,6 +22,7 @@ export default function TabsLayout() {
         headerRight: () => (
           <View style={{ flexDirection: "row", alignItems: "center" }}>
             <PremiumButton />
+             <MessageInboxButton />
             <NotificationBell />
           </View>
         ),
@@ -33,6 +35,17 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="home-outline" size={size} color={color} />
           ),
+        }}
+      />
+
+       <Tabs.Screen
+        name="my-items"
+        options={{
+          title: "Mes items",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="cube-outline" size={size} color={color} />
+          ),
+           href: !isAdmin ? "/my-items" : null,
         }}
       />
 

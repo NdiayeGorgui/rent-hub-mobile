@@ -45,6 +45,10 @@ export const deactivateItem = async (id: number) => {
   return response.data;
 };
 
+export const activateItem = async (id: number) => {
+  return API.put(`/items/${id}/activate`);
+};
+
 // 🔎 Recherche avec filtres
 export const searchItems = async (filters: any) => {
 
@@ -58,3 +62,4 @@ export const searchItems = async (filters: any) => {
 
   return response.data.content;
 };
+

@@ -10,6 +10,7 @@ import { useRef, useEffect } from "react";
 import { useAuth } from "@/src/context/AuthContext";
 
 
+
 export default function TabsContent() {
 
   const { user, loading } = useAuth(); // loading = true tant que le profil n'est pas chargé
@@ -34,6 +35,7 @@ export default function TabsContent() {
         headerRight: () => (
           <View style={{ flexDirection: "row", alignItems: "center" }}>
             <PremiumButton />
+            <MessageInboxButton />
             <NotificationBell />
           </View>
         ),
@@ -206,4 +208,20 @@ function PremiumButton() {
       </Text>
     </TouchableOpacity>
   );
+}
+
+export function MessageInboxButton() {
+
+    const router = useRouter();
+
+    return (
+        <TouchableOpacity
+            style={{ marginRight: 10 }}
+            onPress={() => router.push("/messages/chat")}
+        >
+            <View>
+                <Ionicons name="mail-outline" size={24} color="#111" />
+            </View>
+        </TouchableOpacity>
+    );
 }

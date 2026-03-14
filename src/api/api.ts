@@ -5,7 +5,7 @@ import * as SecureStore from "expo-secure-store";
 const getBaseURL = () => {
   if (Platform.OS === "android") return "http://10.0.2.2:8080/api";
   if (Platform.OS === "web") return "http://localhost:8080/api";
-  return "http://localhost:8080/api";
+   return "http://192.168.0.118:8080/api"; // vrai téléphone
 };
 
 export const API = axios.create({

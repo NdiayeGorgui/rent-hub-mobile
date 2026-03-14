@@ -8,8 +8,8 @@ import {
   Platform,
 } from "react-native";
 import { useEffect, useState } from "react";
-import { Link, useLocalSearchParams, useRouter } from "expo-router";
-import { deactivateItem, fetchItemDetails } from "../../src/api/itemService";
+import { Link, useLocalSearchParams } from "expo-router";
+import { activateItem, deactivateItem, fetchItemDetails } from "../../src/api/itemService";
 import { TextInput, Pressable, Alert } from "react-native";
 import { createRental } from "../../src/api/rentalService";
 import { createAuction, getAuctionByItemId, placeBid } from "../../src/api/auctionService";
@@ -47,7 +47,6 @@ export default function ItemDetails() {
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
   const [showAuctionPicker, setShowAuctionPicker] = useState(false);
-  const router = useRouter();
 
   const baseURL =
     Platform.OS === "android"
@@ -229,6 +228,38 @@ export default function ItemDetails() {
     }
   };
 
+const handleDeactivate = () => {
+
+  const action = item.active ? "désactiver" : "activer";
+
+  showConfirm(
+    "Confirmation",
+    `Voulez-vous vraiment ${action} cet item ?`,
+    async () => {
+      try {
+        setDeactivateLoading(true);
+
+        if (item.active) {
+          await deactivateItem(Number(id));
+        } else {
+          await activateItem(Number(id));
+        }
+
+        setItem({ ...item, active: !item.active });
+
+        showAlert(
+          "Succès",
+          item.active ? "Item désactivé" : "Item activé"
+        );
+
+      } catch (error) {
+        showAlert("Erreur", "Impossible de modifier le statut");
+      } finally {
+        setDeactivateLoading(false);
+      }
+    }
+  );
+};
 
   const handleRent = async () => {
     if (!startDate || !endDate) {
@@ -256,6 +287,31 @@ export default function ItemDetails() {
     }
   };
 
+  const handleCreateAuction = async () => {
+    if (!startPrice || !endDateAuction) {
+      showAlert("Erreur", "Veuillez entrer le prix de départ et la date de fin");
+      return;
+    }
+
+    try {
+      setAuctionLoading(true);
+
+      await createAuction({
+        itemId: Number(id),
+        startPrice: Number(startPrice),
+        endDate: endDateAuction,
+      });
+
+      showAlert("Succès", "Enchère créée !");
+      setStartPrice("");
+      setEndDateAuction("");
+    } catch (error: any) {
+      console.log("Create auction error:", error?.response?.data);
+      showAlert("Erreur", "Impossible de créer l'enchère");
+    } finally {
+      setAuctionLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -275,7 +331,40 @@ export default function ItemDetails() {
 
   return (
 
+
     <ScrollView style={styles.container}>
+{isOwner && (
+  <View style={styles.managementMenu}>
+
+    <Pressable style={styles.manageCard}>
+      <Text style={styles.manageIcon}>✏️</Text>
+      <Text style={styles.manageLabel}>Modifier</Text>
+    </Pressable>
+
+    <Pressable
+      style={[
+        styles.manageCard,
+        item.active ? styles.deactivateCard : styles.activateCard
+      ]}
+      onPress={handleDeactivate}
+      disabled={deactivateLoading}
+    >
+      <Text style={styles.manageIcon}>
+        {item.active ? "🚫" : "✅"}
+      </Text>
+
+      <Text style={styles.manageLabel}>
+        {item.active ? "Désactiver" : "Activer"}
+      </Text>
+    </Pressable>
+
+    <Pressable style={styles.manageCard}>
+      <Text style={styles.manageIcon}>📊</Text>
+      <Text style={styles.manageLabel}>Statistiques</Text>
+    </Pressable>
+
+  </View>
+)}
       <Text style={styles.title}>{item.title}</Text>
 
 
@@ -333,7 +422,7 @@ export default function ItemDetails() {
         }}
         style={styles.profileLink}
       >
-        Voir le profil du propriétaire →
+        Voir mon profil →
       </Link>
 
       <Text>Pseudo : @{item.publisher?.username}</Text>
@@ -341,29 +430,6 @@ export default function ItemDetails() {
       <Text style={styles.section}>
         ⭐ Avis sur ce propriétaire ({userReviews.length})
       </Text>
-      {!isOwner && (
-<Pressable
-  style={styles.messageButton}
-  onPress={() => {
-
-    console.log("receiverId:", item.publisher?.userId)
-    console.log("itemId:", item.itemId)
-
-    router.push({
-      pathname: "/messages/chat",
-      params: {
-        receiverId: item.publisher?.userId,
-        itemId: item.itemId,
-      },
-    })
-
-  }}
->
-  <Text style={styles.buttonText}>
-    ✉️ Écrire au propriétaire
-  </Text>
-</Pressable>
-)}
 
       {userReviewsLoading ? (
         <ActivityIndicator size="small" color="#2563eb" />
@@ -461,8 +527,6 @@ export default function ItemDetails() {
           </Text>
         )}
 
-      
-      
       {/* ======== LOCATION (Visible seulement si RENTAL et PAS owner) ======== */}
       {item.type === "RENTAL" && !isOwner && (
         <>
@@ -603,7 +667,15 @@ export default function ItemDetails() {
             />
           )}
 
-      
+          <Pressable
+            onPress={handleCreateAuction}
+            style={styles.rentButton}
+            disabled={auctionLoading}
+          >
+            <Text style={{ color: "#fff", textAlign: "center", fontWeight: "600" }}>
+              {auctionLoading ? "Publication..." : "Publier l'enchère"}
+            </Text>
+          </Pressable>
         </>
       )}
 
@@ -732,10 +804,47 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     fontWeight: "600",
   },
-  messageButton: {
-  backgroundColor: "#10b981",
-  padding: 12,
-  borderRadius: 8,
-  marginTop: 12,
+
+
+  manageButton: {
+    backgroundColor: "#2563eb",
+    padding: 10,
+    borderRadius: 8,
+  },
+
+  manageText: {
+    color: "#fff",
+    fontWeight: "600",
+  },
+  managementMenu: {
+  marginBottom: 20,
+  gap: 12,
+},
+
+manageCard: {
+  flexDirection: "row",
+  alignItems: "center",
+  backgroundColor: "#fff",
+  padding: 16,
+  borderRadius: 12,
+  elevation: 2,
+},
+
+manageIcon: {
+  fontSize: 20,
+  marginRight: 12,
+},
+
+manageLabel: {
+  fontSize: 16,
+  fontWeight: "600",
+},
+
+deactivateCard: {
+  backgroundColor: "#fee2e2",
+},
+
+activateCard: {
+  backgroundColor: "#dcfce7",
 },
 });

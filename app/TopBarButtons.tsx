@@ -4,6 +4,7 @@ import { useCallback, useContext, useRef, useEffect } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "expo-router";
 import { NotificationContext } from "@/src/context/NotificationContext";
+import { MessageContext } from "@/src/context/MessageContext";
 
 // 🔔 NotificationBell
 export function NotificationBell() {
@@ -106,6 +107,58 @@ export function PremiumButton() {
             >
                 Premium
             </Text>
+        </TouchableOpacity>
+    );
+}
+
+export function MessageInboxButton() {
+
+    const router = useRouter();
+    const { unreadMessages, loadUnreadMessages } = useContext(MessageContext);
+
+     useFocusEffect(
+        useCallback(() => {
+            loadUnreadMessages();
+        }, [])
+    );
+
+    return (
+        <TouchableOpacity
+            style={{ marginRight: 10 }}
+            onPress={() => router.push("/messages/inbox")}
+        >
+            <View>
+
+                <Ionicons name="mail-outline" size={24} color="#111" />
+
+                {unreadMessages > 0 && (
+                    <View
+                        style={{
+                            position: "absolute",
+                            right: -6,
+                            top: -4,
+                            backgroundColor: "red",
+                            borderRadius: 10,
+                            minWidth: 18,
+                            height: 18,
+                            justifyContent: "center",
+                            alignItems: "center",
+                            paddingHorizontal: 4,
+                        }}
+                    >
+                        <Text
+                            style={{
+                                color: "white",
+                                fontSize: 11,
+                                fontWeight: "bold",
+                            }}
+                        >
+                            {unreadMessages > 99 ? "99+" : unreadMessages}
+                        </Text>
+                    </View>
+                )}
+
+            </View>
         </TouchableOpacity>
     );
 }

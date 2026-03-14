@@ -1,7 +1,13 @@
 import { API } from "./api";
 
-export const getAllItemsAdmin = async () => {
+/*export const getAllItemsAdmin = async () => {
   const res = await API.get("/admin/items");
+  return res.data;
+};*/
+
+
+export const getAllItemsAdmin = async () => {
+  const res = await API.get("/admin/items/full");
   return res.data;
 };
 

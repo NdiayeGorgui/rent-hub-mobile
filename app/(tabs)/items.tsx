@@ -12,6 +12,7 @@ import {
     TextInput,
 } from "react-native";
 import { useFocusEffect } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 
 import {
     getAllItemsAdmin,
@@ -19,22 +20,22 @@ import {
     deactivateItemAdmin,
 } from "@/src/api/adminItemService";
 
-import { fetchItemDetails } from "@/src/api/itemService";
-import { getAuctionByItemId } from "@/src/api/auctionService";
-import { Ionicons } from "@expo/vector-icons";
-
 interface Item {
-    id: number;
+    itemId: number;
     title: string;
     description: string;
     city: string;
     pricePerDay: number;
     active: boolean;
     type: "RENTAL" | "AUCTION";
-    publisher?: {
-        userId: string;
-        username: string;
-    };
+
+    username?: string;
+
+    // subscription
+    premium?: boolean;
+    gracePeriod?: boolean;
+
+    // auction
     currentPrice?: number | null;
 }
 
@@ -45,7 +46,7 @@ export default function AdminItemsScreen() {
     const [search, setSearch] = useState("");
 
     // =========================
-    // LOAD ITEMS
+    // FILTER
     // =========================
 
     const filteredItems = items.filter((i) => {
@@ -56,42 +57,33 @@ export default function AdminItemsScreen() {
                 ? ["auction", "enchere", "enchère"]
                 : ["rental", "rent", "location", "louer"];
 
+        const statusLabel = i.active
+            ? ["actif", "active", "enabled"]
+            : ["desactive", "désactivé", "disabled"];
+
+        const premiumLabel = i.premium
+            ? ["premium"]
+            : ["standard"];
+
         return (
             i.title?.toLowerCase().includes(s) ||
-            i.publisher?.username?.toLowerCase().includes(s) ||
-            typeLabel.some((t) => t.includes(s))
+            i.username?.toLowerCase().includes(s) ||
+            typeLabel.some((t) => t.includes(s)) ||
+            statusLabel.some((t) => t.includes(s)) ||
+            premiumLabel.some((t) => t.includes(s))
         );
     });
 
+    // =========================
+    // LOAD ITEMS
+    // =========================
 
     const loadItems = async () => {
         setLoading(true);
 
         try {
             const data = await getAllItemsAdmin();
-
-            const itemsWithDetails: Item[] = await Promise.all(
-                data.map(async (item: Item) => {
-                    const details = await fetchItemDetails(item.id);
-
-                    // AUCTION PRICE
-                    if (details.type === "AUCTION") {
-                        try {
-                            const auction = await getAuctionByItemId(item.id);
-                            details.currentPrice = auction?.currentPrice ?? null;
-                        } catch {
-                            details.currentPrice = null;
-                        }
-                    }
-
-                    return {
-                        ...details,
-                        id: item.id,
-                    };
-                })
-            );
-
-            setItems(itemsWithDetails);
+            setItems(data);
         } catch (e) {
             console.log(e);
             Alert.alert("Erreur", "Impossible de charger les items");
@@ -140,17 +132,19 @@ export default function AdminItemsScreen() {
     const handleToggle = async (item: Item, newValue: boolean) => {
         try {
             if (newValue) {
-                await activateItemAdmin(item.id);
+                await activateItemAdmin(item.itemId);
             } else {
-                await deactivateItemAdmin(item.id);
+                await deactivateItemAdmin(item.itemId);
             }
 
             setItems((prev) =>
-                prev.map((i) => (i.id === item.id ? { ...i, active: newValue } : i))
+                prev.map((i) =>
+                    i.itemId === item.itemId ? { ...i, active: newValue } : i
+                )
             );
         } catch (error) {
             console.log(error);
-            alert("Erreur lors de la mise à jour");
+            Alert.alert("Erreur", "Erreur lors de la mise à jour");
         }
     };
 
@@ -173,8 +167,9 @@ export default function AdminItemsScreen() {
     return (
         <View style={styles.container}>
             <Text style={styles.title}>Gestion des objets</Text>
+
             <TextInput
-                placeholder="Rechercher utilisateur..."
+                placeholder="Rechercher..."
                 value={search}
                 onChangeText={setSearch}
                 style={styles.search}
@@ -182,50 +177,75 @@ export default function AdminItemsScreen() {
 
             <FlatList
                 data={filteredItems}
-                keyExtractor={(item) => item.id.toString()}
+                keyExtractor={(item) => item.itemId.toString()}
                 refreshControl={
                     <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
                 }
                 contentContainerStyle={{ paddingBottom: 40 }}
                 renderItem={({ item }) => (
-
                     <View style={styles.card}>
                         <View style={{ flex: 1 }}>
-
                             <Text style={styles.titleItem}>
-                                #{item.id} - {item.title}
+                                #{item.itemId} - {item.title}
                             </Text>
 
                             <View style={styles.infoRow}>
                                 <Ionicons name="person-outline" size={14} color="#374151" />
                                 <Text style={styles.owner}>
-                                    @{item.publisher?.username ?? "..."}
+                                    @{item.username ?? "..."}
                                 </Text>
                             </View>
 
                             <View style={styles.infoRow}>
-                                <Ionicons name="location-outline" size={14} color="#6b7280" />
+                                <Ionicons
+                                    name="location-outline"
+                                    size={14}
+                                    color="#6b7280"
+                                />
                                 <Text style={styles.city}>{item.city}</Text>
                             </View>
+
                             {item.type === "AUCTION" ? (
                                 <Text style={styles.price}>
                                     🔥 Enchère :{" "}
                                     {item.currentPrice != null
                                         ? `${item.currentPrice} $`
-                                        : "Enchère pas disponible"}
+                                        : "Pas d'enchère"}
                                 </Text>
                             ) : (
-                                <Text style={styles.price}>{item.pricePerDay} $/j</Text>
+                                <Text style={styles.price}>
+                                    {item.pricePerDay} $ / jour
+                                </Text>
                             )}
+                            <View style={styles.badgeRow}>
 
-                            <Text
-                                style={[
-                                    styles.status,
-                                    { backgroundColor: item.active ? "#16a34a" : "#dc2626" },
-                                ]}
-                            >
-                                {item.active ? "Actif" : "Désactivé"}
-                            </Text>
+                                {item.premium ? (
+                                    <Text style={[styles.badge, styles.premiumBadge]}>
+                                        ★ Premium
+                                    </Text>
+                                ) : (
+                                    <Text style={[styles.badge, styles.standardBadge]}>
+                                        Standard
+                                    </Text>
+                                )}
+
+                                {item.gracePeriod && (
+                                    <Text style={[styles.badge, styles.graceBadge]}>
+                                        Grace Period
+                                    </Text>
+                                )}
+
+                                <Text
+                                    style={[
+                                        styles.badge,
+                                        styles.statusBadge,
+                                        { backgroundColor: item.active ? "#16a34a" : "#dc2626" }
+                                    ]}
+                                >
+                                    {item.active ? "Actif" : "Désactivé"}
+                                </Text>
+
+                            </View>
                         </View>
 
                         <Switch
@@ -247,7 +267,9 @@ export default function AdminItemsScreen() {
 
 const styles = StyleSheet.create({
     container: { flex: 1, padding: 16, backgroundColor: "#f1f5f9" },
+
     title: { fontSize: 22, fontWeight: "bold", marginBottom: 16 },
+
     search: {
         backgroundColor: "#fff",
         padding: 10,
@@ -256,6 +278,7 @@ const styles = StyleSheet.create({
         borderColor: "#ddd",
         marginBottom: 12,
     },
+
     card: {
         flexDirection: "row",
         alignItems: "center",
@@ -266,7 +289,10 @@ const styles = StyleSheet.create({
         elevation: 3,
     },
 
-    titleItem: { fontSize: 16, fontWeight: "bold" },
+    titleItem: {
+        fontSize: 16,
+        fontWeight: "bold",
+    },
 
     owner: {
         fontSize: 13,
@@ -274,7 +300,10 @@ const styles = StyleSheet.create({
         marginTop: 2,
     },
 
-    city: { fontSize: 13, color: "#6b7280" },
+    city: {
+        fontSize: 13,
+        color: "#6b7280",
+    },
 
     price: {
         marginTop: 4,
@@ -297,11 +326,42 @@ const styles = StyleSheet.create({
         justifyContent: "center",
         alignItems: "center",
     },
+
     infoRow: {
         flexDirection: "row",
         alignItems: "center",
         gap: 4,
         marginTop: 2,
     },
+    badgeRow: {
+        flexDirection: "row",
+        gap: 6,
+        marginTop: 6,
+        alignItems: "center"
+    },
 
+    badge: {
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 6,
+        fontSize: 11,
+        fontWeight: "bold"
+    },
+
+    premiumBadge: {
+        backgroundColor: "#facc15",
+    },
+
+    standardBadge: {
+        backgroundColor: "#e5e7eb",
+    },
+
+    graceBadge: {
+        backgroundColor: "#f97316",
+        color: "white",
+    },
+
+    statusBadge: {
+        color: "white",
+    },
 });
