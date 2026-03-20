@@ -7,6 +7,7 @@ export default function UserProfile() {
     const { id } = useLocalSearchParams();
     const [user, setUser] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+   
 
     useEffect(() => {
         loadProfile();

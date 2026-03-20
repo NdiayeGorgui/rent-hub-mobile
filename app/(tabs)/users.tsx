@@ -16,6 +16,7 @@ import {
   getAllUsers,
   suspendUser,
   activateUser,
+  strikeUser,
 } from "@/src/api/adminService";
 
 interface User {
@@ -28,6 +29,8 @@ interface User {
   enabled: boolean;
   roles: string[];
   subscription: string;
+  auctionStrikes?: number;
+  auctionRestricted?: boolean;
 }
 
 export default function AdminUsersScreen() {
@@ -82,6 +85,51 @@ export default function AdminUsersScreen() {
       ]);
     }
   };
+
+  const handleStrike = (user: User) => {
+
+  const message =
+    "Ajouter un strike à cet utilisateur ?\n\n" +
+    "3 strikes = interdiction de participer aux enchères.";
+
+  if (Platform.OS === "web") {
+    if (confirm(message)) {
+      applyStrike(user);
+    }
+  } else {
+    Alert.alert("Strike utilisateur", message, [
+      { text: "Annuler", style: "cancel" },
+      {
+        text: "Confirmer",
+        style: "destructive",
+        onPress: () => applyStrike(user),
+      },
+    ]);
+  }
+};
+
+const applyStrike = async (user: User) => {
+  try {
+
+    const res = await strikeUser(user.id);
+
+    setUsers(prev =>
+      prev.map(u =>
+        u.id === user.id
+          ? {
+              ...u,
+              auctionStrikes: res.auctionStrikes,
+              auctionRestricted: res.auctionRestricted
+            }
+          : u
+      )
+    );
+
+  } catch (err) {
+    console.log(err);
+    alert("Erreur lors du strike");
+  }
+};
 
   const handleToggle = async (user: User, newValue: boolean) => {
     try {
@@ -160,6 +208,11 @@ export default function AdminUsersScreen() {
               </Text>
 
               <View style={styles.metaRow}>
+                {item.auctionStrikes !== undefined && (
+  <Text style={styles.strikes}>
+    ⚠ Strikes : {item.auctionStrikes}/3
+  </Text>
+)}
                 <Text
                   style={[
                     styles.statusBadge,
@@ -194,10 +247,23 @@ export default function AdminUsersScreen() {
               </View>
             </View>
 
-            <Switch
-              value={Boolean(item.enabled)}
-              onValueChange={(newValue) => toggleUser(item, newValue)}
-            />
+<View style={styles.actions}>
+
+  <Switch
+    value={Boolean(item.enabled)}
+    onValueChange={(newValue) => toggleUser(item, newValue)}
+  />
+
+  {item.subscription === "PREMIUM" && (
+    <Text
+      style={styles.strikeButton}
+      onPress={() => handleStrike(item)}
+    >
+      ⚠ Strike
+    </Text>
+  )}
+
+</View>
           </View>
         )}
       />
@@ -272,4 +338,25 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "bold",
   },
+strikeButton: {
+  backgroundColor: "#f59e0b",
+  color: "white",
+  paddingHorizontal: 10,
+  paddingVertical: 6,
+  borderRadius: 6,
+  fontSize: 12,
+  fontWeight: "bold",
+  marginTop: 8,
+},
+
+strikes: {
+  marginTop: 6,
+  fontSize: 12,
+  color: "#dc2626",
+  fontWeight: "600",
+},
+actions: {
+  alignItems: "center",
+  marginLeft: 10,
+},
 });

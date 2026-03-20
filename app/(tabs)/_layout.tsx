@@ -2,7 +2,7 @@ import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@/src/context/AuthContext";
 import { View } from "react-native";
-import { NotificationBell, PremiumButton ,MessageInboxButton} from "../TopBarButtons";
+import { NotificationBell, PremiumButton ,MessageInboxButton, SupportButton} from "../TopBarButtons";
 
 
 
@@ -21,6 +21,7 @@ export default function TabsLayout() {
         tabBarActiveTintColor: "#2563eb",
         headerRight: () => (
           <View style={{ flexDirection: "row", alignItems: "center" }}>
+             <SupportButton /> 
             <PremiumButton />
              <MessageInboxButton />
             <NotificationBell />

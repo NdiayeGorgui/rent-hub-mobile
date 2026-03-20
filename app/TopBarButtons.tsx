@@ -84,6 +84,8 @@ export function PremiumButton() {
     const router = useRouter();
 
     return (
+
+        
         <TouchableOpacity
             onPress={() => router.push("/subscription/subscription")}
             style={{
@@ -159,6 +161,30 @@ export function MessageInboxButton() {
                 )}
 
             </View>
+        </TouchableOpacity>
+    );
+}
+
+export function SupportButton() {
+
+    const router = useRouter();
+
+    return (
+        <TouchableOpacity
+            style={{ marginRight: 10 }}
+            onPress={() =>
+                router.push({
+                    pathname: "/messages/chat",
+                    params: {
+                        // ⚠️ PAS de conversationId → il sera créé automatiquement
+                        receiverId: "SUPPORT", // flag spécial
+                        itemId: "SUPPORT",
+                        receiverUsername: "Support"
+                    }
+                })
+            }
+        >
+            <Ionicons name="help-circle-outline" size={24} color="#111" />
         </TouchableOpacity>
     );
 }

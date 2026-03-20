@@ -9,5 +9,6 @@ export type Item = {
   address?: string;
   imageUrls: string[];
   active: boolean;
+   type: "AUCTION" | "RENTAL";
   createdAt: string; // ISO string
 };

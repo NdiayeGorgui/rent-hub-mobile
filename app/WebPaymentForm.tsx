@@ -3,7 +3,7 @@ import { loadStripe } from "@stripe/stripe-js";
 import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import { subscribeToPremium } from "@/src/api/paymentService.web";
 
-const stripePromise = loadStripe("pk_test_xxxxxxxxx");
+const stripePromise = loadStripe("pk_test_51T4saEL13XKhsSvAVRTgYoPiSsR9otLFgBzR9OfgobHqZbjKN7YyugeJRRVkSP2frn0HzvXpD5mzj2Zqmepeh3xq00Vh1cDmSW");
 
 function CheckoutForm() {
   const stripe = useStripe();

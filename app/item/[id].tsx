@@ -12,7 +12,7 @@ import { Link, useLocalSearchParams, useRouter } from "expo-router";
 import { deactivateItem, fetchItemDetails } from "../../src/api/itemService";
 import { TextInput, Pressable, Alert } from "react-native";
 import { createRental } from "../../src/api/rentalService";
-import { createAuction, getAuctionByItemId, placeBid } from "../../src/api/auctionService";
+import { createAuction, getAuctionByItemId, isWatchingAuction, placeBid, watchAuction } from "../../src/api/auctionService";
 import { getCurrentUser } from "../../src/api/authService";
 import { getReviewsByItem, getReviewsByUser, getReviewsCountByItem } from "@/src/api/reviewService";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -47,7 +47,11 @@ export default function ItemDetails() {
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
   const [showAuctionPicker, setShowAuctionPicker] = useState(false);
+  const [isWatching, setIsWatching] = useState(false);
+  const [reservePrice, setReservePrice] = useState("");
+  
   const router = useRouter();
+  
 
   const baseURL =
     Platform.OS === "android"
@@ -79,18 +83,25 @@ export default function ItemDetails() {
           try {
             const auctionData = await getAuctionByItemId(Number(id));
 
-            setAuction({
-              ...auctionData,
-              currentPrice:
-                auctionData?.currentPrice ??
-                auctionData?.startPrice ??
-                null,
-            });
-          } catch (err) {
-            console.log("No auction yet for this item");
-            setAuction(null);
-          }
-        }
+setAuction({
+  ...auctionData,
+  views: auctionData.views ?? 0,
+  watchers: auctionData.watchers ?? 0,
+  currentPrice:
+    auctionData?.currentPrice ??
+    auctionData?.startPrice ??
+    null,
+});
+          // 🔥 Vérifier si l’utilisateur suit déjà cette enchère
+   if (user?.userId) {
+  const watching = await isWatchingAuction(auctionData.id);
+  setIsWatching(watching);
+}
+  } catch (err) {
+    console.log("No auction yet for this item");
+    setAuction(null);
+  }
+}
 
         // 🔥 Charger les reviews
         try {
@@ -200,35 +211,61 @@ export default function ItemDetails() {
     }
   };
 
+const handleBid = async () => {
+  if (!bidAmount) {
+    showAlert("Erreur", "Entrez un montant");
+    return;
+  }
 
-  const handleBid = async () => {
-    if (!bidAmount) {
-      showAlert("Erreur", "Entrez un montant");
-      return;
+  if (Platform.OS === "web") {
+    // 🔹 Sur le web, on utilise confirm()
+    if (!confirm(
+      "Engagement d'enchère\n\nPlacer une enchère constitue un engagement d'achat. Si vous gagnez et ne payez pas, votre compte pourra être suspendu."
+    )) {
+      return; // l'utilisateur a annulé
     }
-
-    try {
-      setBidLoading(true);
-
-      await placeBid(Number(auction.id), Number(bidAmount));
-      const updatedAuction = await getAuctionByItemId(Number(id));
-      setAuction(updatedAuction);
-
-      showAlert("Succès", "Enchère placée !");
-      setBidAmount("");
-
-    } catch (error: any) {
-      console.log("Bid error:", error?.response?.data);
-
-      showAlert(
-        "Erreur",
-        error?.response?.data?.message || "Impossible de placer l'enchère"
+  } else {
+    // 🔹 Sur mobile, on utilise Alert.alert avec deux boutons
+    let proceed = false;
+    await new Promise<void>((resolve) => {
+      Alert.alert(
+        "Engagement d'enchère",
+        "Placer une enchère constitue un engagement d'achat. Si vous gagnez et ne payez pas, votre compte pourra être suspendu.",
+        [
+          { text: "Annuler", style: "cancel", onPress: () => resolve() },
+          { 
+            text: "Confirmer", 
+            onPress: () => {
+              proceed = true;
+              resolve();
+            } 
+          },
+        ]
       );
-    } finally {
-      setBidLoading(false);
-    }
-  };
+    });
+    if (!proceed) return; // utilisateur a annulé
+  }
 
+  // 🔹 Placer l'enchère après confirmation
+  try {
+    setBidLoading(true);
+
+    await placeBid(Number(auction.id), Number(bidAmount));
+    const updatedAuction = await getAuctionByItemId(Number(id));
+    setAuction(updatedAuction);
+
+    showAlert("Succès", "Enchère placée !");
+    setBidAmount("");
+  } catch (error: any) {
+    console.log("Bid error:", error?.response?.data);
+    showAlert(
+      "Erreur",
+      error?.response?.data?.message || "Impossible de placer l'enchère"
+    );
+  } finally {
+    setBidLoading(false);
+  }
+};
 
   const handleRent = async () => {
     if (!startDate || !endDate) {
@@ -279,22 +316,76 @@ export default function ItemDetails() {
       <Text style={styles.title}>{item.title}</Text>
 
 
-      {item.type === "AUCTION" && auction && (
-        <View style={styles.auctionHeader}>
-          <Text style={styles.currentPrice}>
-            💰 Prix actuel
-          </Text>
+     {item.type === "AUCTION" && auction && (
+  <View style={styles.auctionHeader}>
 
-          <Text style={styles.priceValue}>
-            {auction?.currentPrice ?? auction?.startPrice} $
-          </Text>
+    <Text style={styles.currentPrice}>
+      💰 Prix actuel
+    </Text>
 
-          <Text style={styles.timer}>
-            ⏳ Temps restant : {timeLeft}
-          </Text>
-        </View>
-      )}
+    <Text style={styles.priceValue}>
+      {auction.currentPrice ?? auction.startPrice} $
+    </Text>
 
+    {/* 🔥 AJOUTER ICI */}
+    {auction.reserveReached ? (
+      <Text style={styles.reserveReached}>
+        ✅ Prix de réserve atteint
+      </Text>
+    ) : (
+      <Text style={styles.reserveNotReached}>
+        ⛔ Prix de réserve non atteint
+      </Text>
+    )}
+
+    <Text>
+      Prix initial : {auction.startPrice} $
+    </Text>
+
+    <Text>
+      👀 {auction?.views ?? 0} personnes regardent
+    </Text>
+
+    <Text>
+      ⭐ {auction?.watchers ?? 0} suivent cette enchère
+    </Text>
+   <Text>
+  👥 {auction?.participantsCount ?? 0}{" "}
+  {(auction?.participantsCount ?? 0) > 1
+    ? "enchérisseurs"
+    : "enchérisseur"}{" "}
+  {(auction?.participantsCount ?? 0) >= 5 && "🔥 Compétition active"}
+</Text>
+
+    <Text style={styles.timer}>
+      ⏳ Temps restant : {timeLeft}
+    </Text>
+
+  </View>
+)}
+{item.type === "AUCTION" && auction && !isOwner && (
+  <Pressable
+    style={[
+      styles.rentButton,
+      isWatching && { backgroundColor: "#9ca3af" } // gris si déjà suivi
+    ]}
+    disabled={isWatching} // désactiver si déjà suivi
+    onPress={async () => {
+      try {
+        const updated = await watchAuction(auction.id); // API POST
+        setAuction(updated); // mettre à jour les watchers
+        setIsWatching(true); // bouton devient gris
+        showAlert("Succès", "⭐ Vous suivez maintenant cette enchère");
+      } catch (error) {
+        showAlert("Erreur", "Impossible de suivre l'enchère");
+      }
+    }}
+  >
+    <Text style={styles.buttonText}>
+      {isWatching ? "⭐ Enchère suivie" : "⭐ Suivre l'enchère"}
+    </Text>
+  </Pressable>
+)}
       {item.imageUrls?.length > 0 ? (
         item?.imageUrls?.map((url: string, index: number) => (
           <Image
@@ -341,7 +432,25 @@ export default function ItemDetails() {
       <Text style={styles.section}>
         ⭐ Avis sur ce propriétaire ({userReviews.length})
       </Text>
-      {!isOwner && (
+    
+
+      {userReviewsLoading ? (
+        <ActivityIndicator size="small" color="#2563eb" />
+      ) : userReviews.length === 0 ? (
+        <Text>Aucun avis pour le moment</Text>
+      ) : (
+        userReviews.map((review) => (
+          <View key={review.id} style={{ marginTop: 10 }}>
+            <Text>⭐ {review.rating}</Text>
+            <Text>{review.comment}</Text>
+            <Text style={{ fontSize: 12, color: "gray" }}>
+              Par {review.reviewerUsername}
+            </Text>
+          </View>
+        ))
+      )}
+
+        {!isOwner && (
 <Pressable
   style={styles.messageButton}
   onPress={() => {
@@ -364,22 +473,6 @@ export default function ItemDetails() {
   </Text>
 </Pressable>
 )}
-
-      {userReviewsLoading ? (
-        <ActivityIndicator size="small" color="#2563eb" />
-      ) : userReviews.length === 0 ? (
-        <Text>Aucun avis pour le moment</Text>
-      ) : (
-        userReviews.map((review) => (
-          <View key={review.id} style={{ marginTop: 10 }}>
-            <Text>⭐ {review.rating}</Text>
-            <Text>{review.comment}</Text>
-            <Text style={{ fontSize: 12, color: "gray" }}>
-              Par {review.reviewerUsername}
-            </Text>
-          </View>
-        ))
-      )}
 
       {/*  <Text>
         ⭐ {item.publisher?.averageRating ?? 0}
@@ -577,6 +670,14 @@ export default function ItemDetails() {
             style={styles.input}
           />
 
+          <TextInput
+  placeholder="Prix de réserve (secret)"
+  value={reservePrice}
+  onChangeText={setReservePrice}
+  keyboardType="numeric"
+  style={styles.input}
+/>
+
           {Platform.OS === "web" ? (
             <input
               type="datetime-local"
@@ -737,5 +838,17 @@ const styles = StyleSheet.create({
   padding: 12,
   borderRadius: 8,
   marginTop: 12,
+},
+
+reserveReached: {
+  marginTop: 6,
+  fontWeight: "600",
+  color: "#16a34a",
+},
+
+reserveNotReached: {
+  marginTop: 6,
+  fontWeight: "600",
+  color: "#dc2626",
 },
 });

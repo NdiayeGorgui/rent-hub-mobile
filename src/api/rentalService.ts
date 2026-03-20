@@ -51,3 +51,8 @@ export const createRental = async (data: {
   const response = await API.post("/rentals", data);
   return response.data;
 };
+
+export const getRentalStatsByItem = async (itemId: number) => {
+  const res = await API.get(`/rentals/stats/item/${itemId}`);
+  return res.data;
+};

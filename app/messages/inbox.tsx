@@ -50,28 +50,28 @@ await loadUnreadMessages()
 
 const openChat = (conversation: Conversation) => {
 
-  const otherUser =
+  const isSupport = conversation.itemId === null
+
+  const otherUserId =
     conversation.user1Id === currentUser?.userId
       ? conversation.user2Id
       : conversation.user1Id
 
   const otherUsername =
-  conversation.user1Id === currentUser?.userId
-    ? conversation.user2Username
-    : conversation.user1Username    
+    conversation.user1Id === currentUser?.userId
+      ? conversation.user2Username
+      : conversation.user1Username
 
-router.push({
-  pathname: "/messages/chat",
-  params: {
-    conversationId: conversation.id,
-    receiverId: otherUser,
-    itemId: conversation.itemId,
-    receiverUsername: otherUsername
-  }
-})
-
+  router.push({
+    pathname: "/messages/chat",
+    params: {
+      conversationId: String(conversation.id),
+      receiverId: String(otherUserId),
+      itemId: isSupport ? "SUPPORT" : String(conversation.itemId), // ✅ "SUPPORT" au lieu de null
+      receiverUsername: isSupport ? "Support" : otherUsername
+    }
+  })
 }
-
   const renderItem = ({ item }: { item: Conversation }) => {
 
     const isMe = item.lastSenderId === currentUser?.userId
@@ -87,9 +87,13 @@ router.push({
         }}
       >
 
-        <Text style={{ fontWeight: "bold" }}>
-          Conversation #{item.id}
-        </Text>
+        <Text style={{ fontSize: 12, color: "gray" }}>
+  {item.itemId === null
+    ? "Support"
+    : (item.user1Id === currentUser?.userId
+        ? item.user2Username
+        : item.user1Username)}
+</Text>
 
         <Text numberOfLines={1}>
           {isMe ? "Vous : " : ""}{item.lastMessage}

@@ -32,3 +32,8 @@ export const getConversationMessages = async (conversationId: number) => {
 export const markMessageAsRead = async (messageId:number) => {
   await API.put(`/messages/${messageId}/read`)
 }
+
+export const sendSupportMessage = async (data: any) => {
+  const res = await API.post("/messages/support", data);
+  return res.data;
+};

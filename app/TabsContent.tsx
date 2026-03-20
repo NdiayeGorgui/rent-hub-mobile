@@ -35,6 +35,7 @@ export default function TabsContent() {
         headerRight: () => (
           <View style={{ flexDirection: "row", alignItems: "center" }}>
             <PremiumButton />
+            <SupportButton /> 
             <MessageInboxButton />
             <NotificationBell />
           </View>
@@ -224,4 +225,25 @@ export function MessageInboxButton() {
             </View>
         </TouchableOpacity>
     );
+}
+
+function SupportButton() {
+  const router = useRouter();
+
+  return (
+    <TouchableOpacity
+      style={{ marginRight: 10 }}
+      onPress={() =>
+        router.push({
+          pathname: "/messages/chat",
+          params: {
+            receiverId: "SUPPORT",
+            receiverUsername: "Support"
+          }
+        })
+      }
+    >
+      <Ionicons name="headset-outline" size={24} color="#111" />
+    </TouchableOpacity>
+  );
 }

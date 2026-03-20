@@ -3,6 +3,8 @@ import { API } from "./api";
 export interface PaymentResponse {
   id: number;
   amount: number;
+  itemId:number;
+  auctionId:number;
   status: string;
   createdAt: string;
   paymentIntentId: string;
@@ -35,5 +37,14 @@ export const getAllPayments = async () => {
 export const getPendingPayments = async () => {
   const { data } = await API.get("/payments/pending");
   return data;
+};
+
+export const createAuctionPayment = async (itemId: number) => {
+
+  const response = await API.post<PaymentResponse>(
+    `/payments/auction-fee/${itemId}`
+  );
+
+  return response.data;
 };
 

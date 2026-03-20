@@ -5,7 +5,8 @@ import { useEffect, useRef, useState } from "react"
 import {
   sendMessage,
   getConversationMessages,
-  markMessageAsRead
+  markMessageAsRead,
+  sendSupportMessage
 } from "@/src/api/messageService"
 
 import { getCurrentUser } from "@/src/api/authService"
@@ -13,24 +14,45 @@ import { useContext } from "react"
 import { MessageContext } from "@/src/context/MessageContext"
 
 export default function ChatScreen() {
-
+    
+// params
 const { conversationId, receiverId, itemId, receiverUsername } = useLocalSearchParams()
-const otherUsername = receiverUsername ? String(receiverUsername) : "Utilisateur"
+
+// ✅ receiver (toujours string ou null)
+const receiver = receiverId ? String(receiverId) : null
+
+// ✅ support
+const isSupportChat =
+  receiver === "SUPPORT" ||
+  itemId === "SUPPORT" ||
+  itemId === undefined ||
+  itemId === null
+
+// ✅ item (peut être null pour support)
+const item =
+  itemId && itemId !== "SUPPORT"
+    ? Number(itemId)
+    : null
+
+// ✅ username affiché
+const otherUsername = isSupportChat
+  ? "Support"
+  : receiverUsername
+    ? String(receiverUsername)
+    : "Utilisateur"
+
+// ✅ states
 const [hasMarkedRead, setHasMarkedRead] = useState(false)
 
 const [convId, setConvId] = useState<number | null>(
   conversationId ? Number(conversationId) : null
 )
 
-
-const receiver = receiverId ? String(receiverId) : null
-const item = itemId ? Number(itemId) : null
-
 const [messages, setMessages] = useState<any[]>([])
 const [content, setContent] = useState("")
 const [user, setUser] = useState<any>(null)
-const { loadUnreadMessages } = useContext(MessageContext)
 
+const { loadUnreadMessages } = useContext(MessageContext)
 
 const loadMessages = async (currentUser?: any) => {
 
@@ -72,7 +94,12 @@ const init = async () => {
 }
 
   init()
-
+console.log("========== INIT ==========")
+console.log("conversationId:", conversationId)
+console.log("receiverId:", receiverId)
+console.log("itemId:", itemId)
+console.log("receiver:", receiver)
+console.log("isSupportChat:", isSupportChat)
 }, [])
 
 
@@ -92,34 +119,53 @@ useEffect(() => {
 }, [convId])
 
 const handleSend = async () => {
-
-  if (!content || !receiver || !item) return
+  if (!content) return;
 
   try {
+    let msg;
 
-    const msg = await sendMessage({
-      receiverId: receiver,
-      itemId: item,
-      content
-    })
+    if (isSupportChat) {
 
-    setContent("")
+      // ✅ ADMIN doit fournir receiverId
+      if (user?.roles?.includes("ADMIN")) {
+        if (!receiver || receiver === "SUPPORT") {
+          console.log("❌ Admin must have receiverId for support conversation");
+          return;
+        }
 
-    // ⭐ récupérer conversationId directement
-    if (!convId) {
-      setConvId(msg.conversationId)
+        msg = await sendSupportMessage({
+          receiverId: receiver, // l'utilisateur à qui il répond
+          content
+        });
+      } 
+      // ✅ USER n'a pas besoin de receiverId
+      else {
+        msg = await sendSupportMessage({
+          content
+        });
+      }
+
+    } else {
+      // Normal user-user
+      if (!receiver) return;
+
+      msg = await sendMessage({
+        receiverId: receiver,
+        itemId: item,
+        content
+      });
     }
 
-    // ⭐ ajouter message instantanément
-    setMessages(prev => [...prev, msg])
+    setContent("");
+    if (!convId && msg?.conversationId) {
+      setConvId(msg.conversationId);
+    }
+    setMessages(prev => [...prev, msg]);
 
   } catch (error) {
-
-    console.log("Send message error:", error)
-
+    console.log("❌ Send message error:", error);
   }
-
-}
+};
 
 const renderItem = ({ item }: any) => {
 

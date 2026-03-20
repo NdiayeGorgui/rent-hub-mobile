@@ -127,7 +127,7 @@ export default function Create() {
       const createdItem = await createItem(formData);
 
       if (type === "AUCTION") {
-        router.push(`/item/${createdItem.id}`);
+         router.push(`/auction-fee/${createdItem.id}`);
         return;
       }
 

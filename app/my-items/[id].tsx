@@ -8,14 +8,17 @@ import {
   Platform,
 } from "react-native";
 import { useEffect, useState } from "react";
-import { Link, useLocalSearchParams } from "expo-router";
-import { activateItem, deactivateItem, fetchItemDetails } from "../../src/api/itemService";
+import { Link, router, useLocalSearchParams } from "expo-router";
+import { activateItem, deactivateItem, fetchItemDetails, updateItem } from "../../src/api/itemService";
 import { TextInput, Pressable, Alert } from "react-native";
-import { createRental } from "../../src/api/rentalService";
-import { createAuction, getAuctionByItemId, placeBid } from "../../src/api/auctionService";
+import { createRental, getRentalStatsByItem } from "../../src/api/rentalService";
+import { closeAuction, createAuction, getAuctionByItemId, isWatchingAuction, placeBid } from "../../src/api/auctionService";
 import { getCurrentUser } from "../../src/api/authService";
 import { getReviewsByItem, getReviewsByUser, getReviewsCountByItem } from "@/src/api/reviewService";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import { Animated } from "react-native";
+import * as ImagePicker from "expo-image-picker";
+
 
 export default function ItemDetails() {
   const { id } = useLocalSearchParams();
@@ -47,6 +50,38 @@ export default function ItemDetails() {
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
   const [showAuctionPicker, setShowAuctionPicker] = useState(false);
+  const [reservePrice, setReservePrice] = useState("");
+
+  const [editMode, setEditMode] = useState(false);
+  const [editTitle, setEditTitle] = useState(item?.title);
+  const [editDescription, setEditDescription] = useState(item?.description);
+  const [editPrice, setEditPrice] = useState(item?.pricePerDay?.toString() || "");
+
+  const slideAnim = useState(new Animated.Value(0))[0];
+
+  const [editCategoryId, setEditCategoryId] = useState("");
+  const [editCity, setEditCity] = useState("");
+  const [editAddress, setEditAddress] = useState("");
+  const [isWatching, setIsWatching] = useState<any[]>([]);
+  const [statsVisible, setStatsVisible] = useState(false);
+  const statsAnim = useState(new Animated.Value(0))[0];
+
+  const [rentalStats, setRentalStats] = useState<any>(null);
+
+
+  const categories = [
+    { id: 1, name: "Électronique" },
+    { id: 2, name: "Électroménager" },
+    { id: 3, name: "Événements" },
+    { id: 4, name: "Véhicules" },
+    { id: 5, name: "Bébé & Enfants" },
+    { id: 6, name: "Sport & Loisirs" },
+    { id: 7, name: "Maison & Meubles" },
+    { id: 8, name: "Mode & Vêtements" },
+    { id: 9, name: "Outils & Bricolage" },
+    { id: 10, name: "Autres" },
+  ];
+  const [editImages, setEditImages] = useState<any[]>([]);
 
   const baseURL =
     Platform.OS === "android"
@@ -54,11 +89,30 @@ export default function ItemDetails() {
       : "http://localhost:8080";
 
 
+  useEffect(() => {
+    if (item) {
+      setEditImages(
+        item.imageUrls.map((url: string) => ({
+          uri: baseURL + url
+        }))
+      );
+    }
+  }, [item]);
+
 
   useEffect(() => {
     const loadItem = async () => {
       try {
         const data = await fetchItemDetails(Number(id));
+        if (data.type === "RENTAL") {
+  try {
+    const stats = await getRentalStatsByItem(Number(id));
+    setRentalStats(stats);
+  } catch (e) {
+    console.log("Error loading rental stats", e);
+  }
+}
+        console.log("ITEM DATA 👉", data);
         setItem(data);
 
         const user = await getCurrentUser();
@@ -77,16 +131,15 @@ export default function ItemDetails() {
         if (data.type === "AUCTION") {
           try {
             const auctionData = await getAuctionByItemId(Number(id));
-
-            setAuction({
-              ...auctionData,
-              currentPrice:
-                auctionData?.currentPrice ??
-                auctionData?.startPrice ??
-                null,
-            });
+            if (auctionData) {
+              setAuction({ ...auctionData });
+              const watching = await isWatchingAuction(auctionData.id);
+              setIsWatching(watching);
+            } else {
+              setAuction(null); // pas encore d'enchère active
+            }
           } catch (err) {
-            console.log("No auction yet for this item");
+            console.log("Error loading auction:", err);
             setAuction(null);
           }
         }
@@ -131,6 +184,7 @@ export default function ItemDetails() {
     loadItem();
   }, [id]);
 
+
   useEffect(() => {
     if (!auction?.endDate) return;
 
@@ -174,6 +228,55 @@ export default function ItemDetails() {
 
   }, [auction]);
 
+  // 🔥 FIX: sync quand item chargé
+  useEffect(() => {
+    if (item) {
+      setEditTitle(item.title || "");
+      setEditDescription(item.description || "");
+      setEditPrice(item.pricePerDay?.toString() || "");
+      setEditCategoryId(item.categoryId?.toString() || "");
+      setEditCity(item.city || "");
+      setEditAddress(item.address || "");
+    }
+  }, [item]);
+
+  const toggleStats = () => {
+  if (statsVisible) {
+    Animated.timing(statsAnim, {
+      toValue: 0,
+      duration: 300,
+      useNativeDriver: false,
+    }).start(() => setStatsVisible(false));
+  } else {
+    setStatsVisible(true);
+    Animated.timing(statsAnim, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
+  }
+};
+
+  const pickImages = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (!permission.granted) {
+      showAlert("Permission refusée", "Accès aux images refusé");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsMultipleSelection: true,
+      quality: 0.8,
+    });
+
+    if (!result.canceled) {
+      // ✅ on AJOUTE sans écraser
+      setEditImages(prev => [...prev, ...result.assets]);
+    }
+  };
+
   const showAlert = (title: string, message: string) => {
     if (Platform.OS === "web") {
       alert(`${title}\n\n${message}`);
@@ -196,6 +299,23 @@ export default function ItemDetails() {
         { text: "Annuler", style: "cancel" },
         { text: "Confirmer", onPress: onConfirm },
       ]);
+    }
+  };
+
+  const toggleEdit = () => {
+    if (editMode) {
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: false,
+      }).start(() => setEditMode(false));
+    } else {
+      setEditMode(true);
+      Animated.timing(slideAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: false,
+      }).start();
     }
   };
 
@@ -228,38 +348,50 @@ export default function ItemDetails() {
     }
   };
 
-const handleDeactivate = () => {
+  // ===============================
+  // ✅ ACTIVATE / DEACTIVATE FIX
+  // ===============================
+  const handleDeactivate = () => {
+    const action = item.active ? "désactiver" : "activer";
 
-  const action = item.active ? "désactiver" : "activer";
+    showConfirm(
+      "Confirmation",
+      `Voulez-vous vraiment ${action} cet item ?`,
+      async () => {
+        try {
+          setDeactivateLoading(true);
 
-  showConfirm(
-    "Confirmation",
-    `Voulez-vous vraiment ${action} cet item ?`,
-    async () => {
-      try {
-        setDeactivateLoading(true);
+          if (item.active) {
+            await deactivateItem(Number(id));
+            setItem({
+              ...item,
+              active: false,
+              status: "INACTIVE",
+            });
+          } else {
+            await activateItem(Number(id));
+            setItem({
+              ...item,
+              active: true,
+              status: "ACTIVE",
+            });
+          }
 
-        if (item.active) {
-          await deactivateItem(Number(id));
-        } else {
-          await activateItem(Number(id));
+          showAlert(
+            "Succès",
+            item.active ? "Item désactivé" : "Item activé"
+          );
+        } catch (error) {
+          showAlert(
+            "Erreur",
+            "Impossible de modifier le statut (paiement ou règles métier)"
+          );
+        } finally {
+          setDeactivateLoading(false);
         }
-
-        setItem({ ...item, active: !item.active });
-
-        showAlert(
-          "Succès",
-          item.active ? "Item désactivé" : "Item activé"
-        );
-
-      } catch (error) {
-        showAlert("Erreur", "Impossible de modifier le statut");
-      } finally {
-        setDeactivateLoading(false);
       }
-    }
-  );
-};
+    );
+  };
 
   const handleRent = async () => {
     if (!startDate || !endDate) {
@@ -287,9 +419,79 @@ const handleDeactivate = () => {
     }
   };
 
+  const handleCloseAuction = () => {
+
+    showConfirm(
+      "Fermer l'enchère",
+      "Voulez-vous vraiment fermer cette enchère maintenant ?",
+      async () => {
+        try {
+
+          await closeAuction(auction.id);
+
+          showAlert("Succès", "Enchère fermée");
+
+          setAuction(null);
+
+        } catch (error) {
+
+          showAlert("Erreur", "Impossible de fermer l'enchère");
+
+        }
+      }
+    );
+  };
+
+  const handleUpdate = async () => {
+    try {
+      if (item.status === "ACTIVE") {
+        showAlert(
+          "Attention",
+          "Modifier cet item peut impacter sa visibilité"
+        );
+      }
+
+      await updateItem(
+        Number(id),
+        {
+          title: editTitle,
+          description: editDescription,
+          categoryId: Number(editCategoryId),
+          city: editCity,
+          address: editAddress,
+          type: item.type,
+          pricePerDay:
+            item.type === "RENTAL" ? Number(editPrice) : null,
+        },
+        editImages // ✅ on envoie TOUT
+      );
+
+      // 🔥 reload depuis backend (IMPORTANT)
+      const updated = await fetchItemDetails(Number(id));
+      setItem(updated);
+
+      showAlert("Succès", "Item modifié");
+
+      toggleEdit();
+
+    } catch (error) {
+      console.log(error);
+      showAlert("Erreur", "Modification impossible");
+    }
+  };
+  const removeImage = (index: number) => {
+    setEditImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // ===============================
+  // ✅ CREATE AUCTION FIX
+  // ===============================
   const handleCreateAuction = async () => {
+
+
+
     if (!startPrice || !endDateAuction) {
-      showAlert("Erreur", "Veuillez entrer le prix de départ et la date de fin");
+      showAlert("Erreur", "Veuillez entrer le prix et la date");
       return;
     }
 
@@ -299,15 +501,22 @@ const handleDeactivate = () => {
       await createAuction({
         itemId: Number(id),
         startPrice: Number(startPrice),
+        reservePrice: Number(reservePrice) || Number(startPrice),
         endDate: endDateAuction,
       });
 
       showAlert("Succès", "Enchère créée !");
+
+      // 🔥 IMPORTANT: redirection (comme ton flow backend)
+      router.replace("/my-items");
+
       setStartPrice("");
+      setReservePrice("");
       setEndDateAuction("");
+
     } catch (error: any) {
       console.log("Create auction error:", error?.response?.data);
-      showAlert("Erreur", "Impossible de créer l'enchère");
+      showAlert("Erreur", error?.response?.data?.message || "Erreur création");
     } finally {
       setAuctionLoading(false);
     }
@@ -333,38 +542,229 @@ const handleDeactivate = () => {
 
 
     <ScrollView style={styles.container}>
-{isOwner && (
-  <View style={styles.managementMenu}>
+      {isOwner && (
+        <View style={styles.managementMenu}>
+          {editMode && (
+            <Animated.View
+              style={[
+                styles.editContainer,
+                {
+                  maxHeight: slideAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0, 700],
+                  }),
+                  opacity: slideAnim,
+                },
+              ]}
+            >
+              <Text style={styles.section}>✏️ Modifier l'item</Text>
 
-    <Pressable style={styles.manageCard}>
-      <Text style={styles.manageIcon}>✏️</Text>
-      <Text style={styles.manageLabel}>Modifier</Text>
-    </Pressable>
+              <TextInput
+                placeholder="Titre"
+                value={editTitle}
+                onChangeText={setEditTitle}
+                style={styles.input}
+              />
 
-    <Pressable
-      style={[
-        styles.manageCard,
-        item.active ? styles.deactivateCard : styles.activateCard
-      ]}
-      onPress={handleDeactivate}
-      disabled={deactivateLoading}
+              <TextInput
+                placeholder="Description"
+                value={editDescription}
+                onChangeText={setEditDescription}
+                style={styles.input}
+                multiline
+              />
+
+              {/* TYPE READ ONLY */}
+              <View style={{ marginTop: 10 }}>
+                <Text>Type</Text>
+                <Text style={{ fontWeight: "bold" }}>
+                  {item.type === "RENTAL" ? "📦 Location" : "🔥 Enchère"}
+                </Text>
+              </View>
+
+              <Text style={styles.section}>Catégorie</Text>
+
+              <View style={styles.pickerContainer}>
+                {categories.map((cat) => (
+                  <Pressable
+                    key={cat.id}
+                    onPress={() => setEditCategoryId(String(cat.id))}
+                    style={[
+                      styles.categoryButton,
+                      editCategoryId === String(cat.id) &&
+                      styles.categoryButtonActive,
+                    ]}
+                  >
+                    <Text style={styles.categoryText}>{cat.name}</Text>
+                  </Pressable>
+                ))}
+              </View>
+
+              {item.type === "RENTAL" && (
+                <TextInput
+                  placeholder="Prix / jour"
+                  value={editPrice}
+                  onChangeText={setEditPrice}
+                  keyboardType="numeric"
+                  style={styles.input}
+                />
+              )}
+
+              <TextInput
+                placeholder="Ville"
+                value={editCity}
+                onChangeText={setEditCity}
+                style={styles.input}
+              />
+
+              <TextInput
+                placeholder="Adresse"
+                value={editAddress}
+                onChangeText={setEditAddress}
+                style={styles.input}
+              />
+
+              <Text style={styles.section}>Images</Text>
+
+              <Pressable style={styles.imageButton} onPress={pickImages}>
+                <Text style={{ color: "#fff", fontWeight: "bold" }}>
+                  Choisir des images
+                </Text>
+              </Pressable>
+
+           <View style={{ flexDirection: "row", flexWrap: "wrap", marginTop: 10 }}>
+  {editImages.map((img, index) => (
+    <View
+      key={index}
+      style={{
+        position: "relative",
+        marginRight: 8,
+        marginBottom: 8,
+      }}
     >
-      <Text style={styles.manageIcon}>
-        {item.active ? "🚫" : "✅"}
-      </Text>
+      {/* IMAGE */}
+      <Image
+        source={{ uri: img.uri }}
+        style={{
+          width: 90,
+          height: 90,
+          borderRadius: 8,
+        }}
+      />
 
-      <Text style={styles.manageLabel}>
-        {item.active ? "Désactiver" : "Activer"}
-      </Text>
-    </Pressable>
+      {/* CROIX */}
+      <Pressable
+        onPress={() => removeImage(index)}
+        style={{
+          position: "absolute",
+          top: -6,
+          right: -6,
+          backgroundColor: "rgba(0,0,0,0.7)",
+          borderRadius: 12,
+          width: 22,
+          height: 22,
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        <Text style={{ color: "#fff", fontSize: 14, fontWeight: "bold" }}>
+          ×
+        </Text>
+      </Pressable>
+    </View>
+  ))}
+</View>
 
-    <Pressable style={styles.manageCard}>
-      <Text style={styles.manageIcon}>📊</Text>
-      <Text style={styles.manageLabel}>Statistiques</Text>
-    </Pressable>
+              {/* ACTIONS */}
+              <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
+                <Pressable style={styles.saveButton} onPress={handleUpdate}>
+                  <Text style={styles.buttonText}>💾 Enregistrer</Text>
+                </Pressable>
 
-  </View>
+                <Pressable style={styles.cancelButton} onPress={toggleEdit}>
+                  <Text style={styles.buttonText}>Annuler</Text>
+                </Pressable>
+              </View>
+            </Animated.View>
+          )}
+          <Pressable style={styles.manageCard} onPress={toggleEdit}>
+            <Text style={styles.manageIcon}>✏️</Text>
+            <Text style={styles.manageLabel}>Modifier</Text>
+          </Pressable>
+
+          <Pressable
+            style={[
+              styles.manageCard,
+              item.active ? styles.deactivateCard : styles.activateCard
+            ]}
+            onPress={handleDeactivate}
+            disabled={deactivateLoading}
+          >
+            <Text style={styles.manageIcon}>
+              {item.active ? "🚫" : "✅"}
+            </Text>
+
+            <Text style={styles.manageLabel}>
+              {item.active ? "Désactiver" : "Activer"}
+            </Text>
+          </Pressable>
+
+        <Pressable style={styles.manageCard} onPress={toggleStats}>
+  <Text style={styles.manageIcon}>📊</Text>
+  <Text style={styles.manageLabel}>Statistiques</Text>
+</Pressable>
+{statsVisible && (
+<Animated.View
+  style={[
+    styles.statsContainer,
+    {
+      maxHeight: statsAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, 300],
+      }),
+      opacity: statsAnim,
+    },
+  ]}
+>
+  <Text style={styles.section}>📊 Statistiques</Text>
+
+  {item.type === "AUCTION" ? (
+    auction ? (
+      <>
+        <Text>👀 Vues : {auction.views ?? 0}</Text>
+        <Text>⭐ Suivis : {auction.watchers ?? 0}</Text>
+        <Text>
+          👥 {auction.participantsCount ?? 0}{" "}
+          {(auction.participantsCount ?? 0) > 1 ? "enchérisseurs" : "enchérisseur"}
+        </Text>
+        <Text style={{ marginTop: 10 }}>💰 Prix initial : {auction.startPrice} $</Text>
+        <Text>📈 Prix actuel : {auction.currentPrice ?? auction.startPrice} $</Text>
+        {auction.reserveReached ? (
+          <Text style={{ color: "#16a34a", fontWeight: "600" }}>✅ Prix de réserve atteint</Text>
+        ) : (
+          <Text style={{ color: "#dc2626", fontWeight: "600" }}>⛔ Prix de réserve non atteint</Text>
+        )}
+      </>
+    ) : (
+      <Text>Aucune enchère active</Text>
+    )
+  ) : item.type === "RENTAL" && rentalStats ? (
+    <>
+      <Text>📦 {rentalStats.rentalsCount} locations</Text>
+      <Text>💰 {rentalStats.totalRevenue} $ générés</Text>
+      <Text>📅 {rentalStats.totalDaysRented} jours loués</Text>
+      {rentalStats.rentalsCount > 5 && (
+        <Text style={{ color: "#16a34a" }}>🔥 Très demandé</Text>
+      )}
+    </>
+  ) : (
+    <Text>Aucune statistique disponible</Text>
+  )}
+</Animated.View>
 )}
+
+        </View>
+      )}
       <Text style={styles.title}>{item.title}</Text>
 
 
@@ -640,6 +1040,13 @@ const handleDeactivate = () => {
             keyboardType="numeric"
             style={styles.input}
           />
+          <TextInput
+            placeholder="Prix de réserve"
+            value={reservePrice}
+            onChangeText={setReservePrice}
+            keyboardType="numeric"
+            style={styles.input}
+          />
 
           {Platform.OS === "web" ? (
             <input
@@ -679,23 +1086,36 @@ const handleDeactivate = () => {
         </>
       )}
 
-      {item.type === "AUCTION" && isOwner && auction && (
-        <>
-          <Text style={styles.section}>📊 Votre enchère</Text>
+      {item.type === "AUCTION" &&
+        isOwner &&
+        auction &&
+        auction.status === "OPEN" && (
+          <>
+            <Text style={styles.section}>📊 Votre enchère</Text>
 
-          <Text>
-            Prix actuel : {
-              auction?.currentPrice != null
-                ? auction.currentPrice
-                : auction?.startPrice != null
-                  ? auction.startPrice
-                  : "Pas encore d'enchère"
-            } $
-          </Text>
+            <Text>
+              Prix actuel : {
+                auction?.currentPrice != null
+                  ? auction.currentPrice
+                  : auction?.startPrice != null
+                    ? auction.startPrice
+                    : "Pas encore d'enchère"
+              } $
+            </Text>
 
-          <Text>Date de fin : {auction?.endDate}</Text>
-        </>
-      )}
+            <Text>Date de fin : {auction?.endDate}</Text>
+
+            {/* 🔥 BOUTON FERMER */}
+            <Pressable
+              onPress={handleCloseAuction}
+              style={styles.closeAuctionButton}
+            >
+              <Text style={styles.buttonText}>
+                🔒 Fermer l'enchère
+              </Text>
+            </Pressable>
+          </>
+        )}
 
     </ScrollView>
 
@@ -817,34 +1237,99 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   managementMenu: {
-  marginBottom: 20,
-  gap: 12,
-},
+    marginBottom: 20,
+    gap: 12,
+  },
 
-manageCard: {
-  flexDirection: "row",
-  alignItems: "center",
+  manageCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    padding: 16,
+    borderRadius: 12,
+    elevation: 2,
+  },
+
+  manageIcon: {
+    fontSize: 20,
+    marginRight: 12,
+  },
+
+  manageLabel: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+
+  deactivateCard: {
+    backgroundColor: "#fee2e2",
+  },
+
+  activateCard: {
+    backgroundColor: "#dcfce7",
+  },
+
+  closeAuctionButton: {
+    backgroundColor: "#dc2626",
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 12,
+  },
+  editContainer: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 15,
+    marginBottom: 15,
+    overflow: "hidden",
+  },
+
+  saveButton: {
+    flex: 1,
+    backgroundColor: "#16a34a",
+    padding: 12,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+
+  cancelButton: {
+    flex: 1,
+    backgroundColor: "#6b7280",
+    padding: 12,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  pickerContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginTop: 10,
+  },
+
+  categoryButton: {
+    padding: 10,
+    backgroundColor: "#ddd",
+    borderRadius: 8,
+    margin: 4,
+  },
+
+  categoryButtonActive: {
+    backgroundColor: "#2563eb",
+  },
+
+  categoryText: {
+    color: "#fff",
+  },
+
+  imageButton: {
+    backgroundColor: "#16a34a",
+    padding: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    marginTop: 10,
+  },
+  statsContainer: {
   backgroundColor: "#fff",
-  padding: 16,
   borderRadius: 12,
-  elevation: 2,
-},
-
-manageIcon: {
-  fontSize: 20,
-  marginRight: 12,
-},
-
-manageLabel: {
-  fontSize: 16,
-  fontWeight: "600",
-},
-
-deactivateCard: {
-  backgroundColor: "#fee2e2",
-},
-
-activateCard: {
-  backgroundColor: "#dcfce7",
+  padding: 15,
+  marginTop: 10,
+  overflow: "hidden",
 },
 });

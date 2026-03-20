@@ -50,3 +50,8 @@ export const getAdminStats = async () => {
   const res = await API.get("/admin/stats");
   return res.data;
 };
+
+export const strikeUser = async (userId: string) => {
+  const res = await API.post(`/users/internal/${userId}/auction-strike`);
+  return res.data;
+};

@@ -13,7 +13,7 @@ import { router } from "expo-router";
 import { Picker } from "@react-native-picker/picker";
 import { Image } from "react-native";
 import { Platform } from "react-native";
-import { getAuctionByItemId } from "../../src/api/auctionService";
+import { getAuctionPublicByItemId  } from "../../src/api/auctionService";
 
 export default function Home() {
 
@@ -42,7 +42,17 @@ export default function Home() {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [auctionData, setAuctionData] = useState<
-    Record<number, { price: number | null; endDate: string | null }>
+    Record<
+      number,
+      {
+        currentPrice: number | null;
+        startPrice: number | null;
+        participants: number;
+        views: number;
+        watchers: number;
+        endDate: string | null;
+      }
+    >
   >({});
 
   const [city, setCity] = useState("");
@@ -126,28 +136,45 @@ export default function Home() {
   };
 
   const loadAuctionPrices = async (items: any[]) => {
-    const auctions: Record<number, { price: number | null; endDate: string | null }> = {};
+
+    const auctions: Record<number, any> = {};
 
     for (const item of items) {
+
       if (item.type === "AUCTION") {
+
         try {
-          const auction = await getAuctionByItemId(item.id);
+
+          const auction = await getAuctionPublicByItemId(item.id);
 
           auctions[item.id] = {
-            price: auction?.currentPrice ?? auction?.startPrice ?? null,
+            currentPrice: auction?.currentPrice ?? null,
+            startPrice: auction?.startPrice ?? null,
+            participants: auction?.participantsCount ?? 0,
+            views: auction?.views ?? 0,
+            watchers: auction?.watchers ?? 0,
             endDate: auction?.endDate ?? null,
           };
 
         } catch (err) {
+
           auctions[item.id] = {
-            price: null,
+            currentPrice: null,
+            startPrice: null,
+            participants: 0,
+            views: 0,
+            watchers: 0,
             endDate: null,
           };
+
         }
+
       }
+
     }
 
     setAuctionData(auctions);
+
   };
 
   const getTimeLeft = (endDate?: string | null) => {
@@ -443,9 +470,27 @@ export default function Home() {
               {item.type === "AUCTION" && (
                 <>
                   <Text style={styles.price}>
-                    {auctionData[item.id]?.price != null
-                      ? `Prix actuel : ${auctionData[item.id].price} $`
+                    {auctionData[item.id]?.currentPrice != null
+                      ? `💰 Prix actuel : ${auctionData[item.id].currentPrice} $`
                       : "Enchère pas encore commencée"}
+                  </Text>
+
+                  {auctionData[item.id]?.startPrice != null && (
+                    <Text style={{ fontSize: 12, color: "#666" }}>
+                      💰 Prix initial : {auctionData[item.id].startPrice} $
+                    </Text>
+                  )}
+                  <Text style={{ fontSize: 12 }}>
+                    👀 {auctionData[item.id]?.views ?? 0} vues • ⭐ {auctionData[item.id]?.watchers ?? 0} suivent
+                  </Text>
+
+                  <Text style={{ fontSize: 12, marginTop: 2 }}>
+                    👥 {auctionData[item.id]?.participants ?? 0}{" "}
+                    {(auctionData[item.id]?.participants ?? 0) > 1
+                      ? "enchérisseurs"
+                      : "enchérisseur"}{" "}
+                    {(auctionData[item.id]?.participants ?? 0) >= 5 && "🔥 Compétition active"}
+
                   </Text>
 
                   {auctionData[item.id]?.endDate && (
