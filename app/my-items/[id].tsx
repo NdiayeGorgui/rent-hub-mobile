@@ -12,12 +12,16 @@ import { Link, router, useLocalSearchParams } from "expo-router";
 import { activateItem, deactivateItem, fetchItemDetails, updateItem } from "../../src/api/itemService";
 import { TextInput, Pressable, Alert } from "react-native";
 import { createRental, getRentalStatsByItem } from "../../src/api/rentalService";
-import { closeAuction, createAuction, getAuctionByItemId, isWatchingAuction, placeBid } from "../../src/api/auctionService";
+import { cancelAuction, createAuction, getAuctionByItemId, isWatchingAuction, placeBid } from "../../src/api/auctionService";
 import { getCurrentUser } from "../../src/api/authService";
 import { getReviewsByItem, getReviewsByUser, getReviewsCountByItem } from "@/src/api/reviewService";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Animated } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import { cancelAuctionPayment } from "@/src/api/paymentService.web";
+import { handleWebPayment } from "@/src/api/stripeWeb";
+
+
 
 
 export default function ItemDetails() {
@@ -68,6 +72,34 @@ export default function ItemDetails() {
 
   const [rentalStats, setRentalStats] = useState<any>(null);
 
+  const [step, setStep] = useState<"view" | "payment">("view");
+
+// formulaire fake (comme ailleurs)
+const [cardNumber, setCardNumber] = useState("4242424242424242");
+const [expMonth, setExpMonth] = useState("12");
+const [expYear, setExpYear] = useState("34");
+const [cvc, setCvc] = useState("123");
+
+const isAuctionEnded =
+  item?.type === "AUCTION" &&
+  item?.active === false &&
+  item?.status !== "CANCELLED_AUCTION";
+ const isAuction = item?.type === "AUCTION";
+
+const isAuctionCancelled =
+  item?.type === "AUCTION" &&
+  item?.active === false &&
+  item?.status !== "INACTIVE";
+
+const auctionStatusLabel = {
+  CANCELLED_AUCTION: "❌ Enchère annulée",
+  INACTIVE: "⛔ Enchère terminée",
+};
+
+const isAuctionClosed =
+  item?.type === "AUCTION" &&
+  (item?.status === "CANCELLED_AUCTION" || item?.active === false);
+
 
   const categories = [
     { id: 1, name: "Électronique" },
@@ -105,13 +137,13 @@ export default function ItemDetails() {
       try {
         const data = await fetchItemDetails(Number(id));
         if (data.type === "RENTAL") {
-  try {
-    const stats = await getRentalStatsByItem(Number(id));
-    setRentalStats(stats);
-  } catch (e) {
-    console.log("Error loading rental stats", e);
-  }
-}
+          try {
+            const stats = await getRentalStatsByItem(Number(id));
+            setRentalStats(stats);
+          } catch (e) {
+            console.log("Error loading rental stats", e);
+          }
+        }
         console.log("ITEM DATA 👉", data);
         setItem(data);
 
@@ -241,21 +273,21 @@ export default function ItemDetails() {
   }, [item]);
 
   const toggleStats = () => {
-  if (statsVisible) {
-    Animated.timing(statsAnim, {
-      toValue: 0,
-      duration: 300,
-      useNativeDriver: false,
-    }).start(() => setStatsVisible(false));
-  } else {
-    setStatsVisible(true);
-    Animated.timing(statsAnim, {
-      toValue: 1,
-      duration: 300,
-      useNativeDriver: false,
-    }).start();
-  }
-};
+    if (statsVisible) {
+      Animated.timing(statsAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: false,
+      }).start(() => setStatsVisible(false));
+    } else {
+      setStatsVisible(true);
+      Animated.timing(statsAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: false,
+      }).start();
+    }
+  };
 
   const pickImages = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -418,29 +450,50 @@ export default function ItemDetails() {
       setRentLoading(false);
     }
   };
+const handleCloseAuction = () => {
+  showConfirm(
+    "Annuler l'enchère",
+    "⚠️ Cette action coûte 50$ comme convenue lors de la création de l'enchere. Voulez-vous continuer ?",
+    () => {
+      // 👉 au lieu de payer direct
+      setStep("payment");
+    }
+  );
+};
 
-  const handleCloseAuction = () => {
+const handleConfirmCancel = async () => {
+  try {
+    setLoading(true);
 
-    showConfirm(
-      "Fermer l'enchère",
-      "Voulez-vous vraiment fermer cette enchère maintenant ?",
-      async () => {
-        try {
+    const res = await cancelAuctionPayment({
+      auctionId: auction.id,
+      itemId: auction.itemId,
+      userId: currentUser.userId,
+      amount: 50
+    });
 
-          await closeAuction(auction.id);
+    const clientSecret = res.clientSecret;
 
-          showAlert("Succès", "Enchère fermée");
+    if (Platform.OS === "web") {
+      await handleWebPayment(clientSecret);
+    } else {
+      showAlert("Info", "Paiement mobile bientôt disponible");
+      return;
+    }
 
-          setAuction(null);
+    showAlert("Succès", "Paiement effectué !");
 
-        } catch (error) {
+    setAuction(null);
+    setStep("view");
 
-          showAlert("Erreur", "Impossible de fermer l'enchère");
+    router.replace("/my-items");
 
-        }
-      }
-    );
-  };
+  } catch (error: any) {
+    showAlert("Erreur", error?.message || "Paiement échoué");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleUpdate = async () => {
     try {
@@ -483,44 +536,51 @@ export default function ItemDetails() {
     setEditImages(prev => prev.filter((_, i) => i !== index));
   };
 
-  // ===============================
-  // ✅ CREATE AUCTION FIX
-  // ===============================
-  const handleCreateAuction = async () => {
+ const handleCreateAuction = () => {
 
+  if (!startPrice || !endDateAuction) {
+    showAlert("Erreur", "Veuillez entrer le prix et la date");
+    return;
+  }
 
-
-    if (!startPrice || !endDateAuction) {
-      showAlert("Erreur", "Veuillez entrer le prix et la date");
-      return;
-    }
-
-    try {
-      setAuctionLoading(true);
-
-      await createAuction({
-        itemId: Number(id),
-        startPrice: Number(startPrice),
-        reservePrice: Number(reservePrice) || Number(startPrice),
-        endDate: endDateAuction,
-      });
-
-      showAlert("Succès", "Enchère créée !");
-
-      // 🔥 IMPORTANT: redirection (comme ton flow backend)
-      router.replace("/my-items");
-
-      setStartPrice("");
-      setReservePrice("");
-      setEndDateAuction("");
-
-    } catch (error: any) {
-      console.log("Create auction error:", error?.response?.data);
-      showAlert("Erreur", error?.response?.data?.message || "Erreur création");
-    } finally {
-      setAuctionLoading(false);
-    }
+  // 🔥 on prépare les données AVANT
+  const payload = {
+    itemId: Number(id),
+    startPrice: Number(startPrice),
+    reservePrice: Number(reservePrice) || Number(startPrice),
+    endDate: endDateAuction,
   };
+
+  showConfirm(
+    "Publier l'enchère",
+    "⚠️ Le prix de départ est définitif.\n\nL’annulation entraînera des frais de 50$.\n\nContinuer ?",
+
+    async () => {
+      try {
+        setAuctionLoading(true);
+
+        await createAuction(payload);
+
+        showAlert("Succès", "Enchère créée !");
+
+        router.replace("/my-items");
+
+        setStartPrice("");
+        setReservePrice("");
+        setEndDateAuction("");
+
+      } catch (error: any) {
+        console.log("Create auction error:", error?.response?.data);
+        showAlert(
+          "Erreur",
+          error?.response?.data?.message || "Erreur création"
+        );
+      } finally {
+        setAuctionLoading(false);
+      }
+    }
+  );
+};
 
   if (loading) {
     return (
@@ -538,10 +598,82 @@ export default function ItemDetails() {
     );
   }
 
+  if (step === "payment") {
+  return (
+    <View style={{ flex: 1, padding: 20, justifyContent: "center" }}>
+
+      <Text style={{ fontSize: 22, fontWeight: "bold", marginBottom: 20 }}>
+        💳 Annulation sécurisée
+      </Text>
+
+      <Text style={{ marginBottom: 10 }}>
+        🔒 Paiement de 50$ pour annuler l'enchère
+      </Text>
+
+      <TextInput
+        style={styles.input}
+        value={cardNumber}
+        onChangeText={setCardNumber}
+        placeholder="Numéro de carte"
+      />
+
+      <TextInput
+        style={styles.input}
+        value={expMonth}
+        onChangeText={setExpMonth}
+        placeholder="Mois"
+      />
+
+      <TextInput
+        style={styles.input}
+        value={expYear}
+        onChangeText={setExpYear}
+        placeholder="Année"
+      />
+
+      <TextInput
+        style={styles.input}
+        value={cvc}
+        onChangeText={setCvc}
+        placeholder="CVC"
+      />
+
+      <Pressable
+        style={[styles.rentButton, { backgroundColor: "#dc2626" }]}
+        onPress={handleConfirmCancel}
+      >
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.buttonText}>
+            Confirmer le paiement
+          </Text>
+        )}
+      </Pressable>
+
+      <Pressable onPress={() => setStep("view")}>
+        <Text style={{ textAlign: "center", marginTop: 10 }}>
+          Annuler
+        </Text>
+      </Pressable>
+
+    </View>
+  );
+}
   return (
 
 
     <ScrollView style={styles.container}>
+  {isAuctionClosed && (
+  <Text style={{ color: "red", fontWeight: "bold", marginBottom: 10 }}>
+    {item.status === "CANCELLED_AUCTION"
+      ? "❌ Enchère annulée"
+      : "⛔ Enchère terminée"}
+  </Text>
+)}
+      
+
+
       {isOwner && (
         <View style={styles.managementMenu}>
           {editMode && (
@@ -632,48 +764,48 @@ export default function ItemDetails() {
                 </Text>
               </Pressable>
 
-           <View style={{ flexDirection: "row", flexWrap: "wrap", marginTop: 10 }}>
-  {editImages.map((img, index) => (
-    <View
-      key={index}
-      style={{
-        position: "relative",
-        marginRight: 8,
-        marginBottom: 8,
-      }}
-    >
-      {/* IMAGE */}
-      <Image
-        source={{ uri: img.uri }}
-        style={{
-          width: 90,
-          height: 90,
-          borderRadius: 8,
-        }}
-      />
+              <View style={{ flexDirection: "row", flexWrap: "wrap", marginTop: 10 }}>
+                {editImages.map((img, index) => (
+                  <View
+                    key={index}
+                    style={{
+                      position: "relative",
+                      marginRight: 8,
+                      marginBottom: 8,
+                    }}
+                  >
+                    {/* IMAGE */}
+                    <Image
+                      source={{ uri: img.uri }}
+                      style={{
+                        width: 90,
+                        height: 90,
+                        borderRadius: 8,
+                      }}
+                    />
 
-      {/* CROIX */}
-      <Pressable
-        onPress={() => removeImage(index)}
-        style={{
-          position: "absolute",
-          top: -6,
-          right: -6,
-          backgroundColor: "rgba(0,0,0,0.7)",
-          borderRadius: 12,
-          width: 22,
-          height: 22,
-          justifyContent: "center",
-          alignItems: "center",
-        }}
-      >
-        <Text style={{ color: "#fff", fontSize: 14, fontWeight: "bold" }}>
-          ×
-        </Text>
-      </Pressable>
-    </View>
-  ))}
-</View>
+                    {/* CROIX */}
+                    <Pressable
+                      onPress={() => removeImage(index)}
+                      style={{
+                        position: "absolute",
+                        top: -6,
+                        right: -6,
+                        backgroundColor: "rgba(0,0,0,0.7)",
+                        borderRadius: 12,
+                        width: 22,
+                        height: 22,
+                        justifyContent: "center",
+                        alignItems: "center",
+                      }}
+                    >
+                      <Text style={{ color: "#fff", fontSize: 14, fontWeight: "bold" }}>
+                        ×
+                      </Text>
+                    </Pressable>
+                  </View>
+                ))}
+              </View>
 
               {/* ACTIONS */}
               <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
@@ -687,81 +819,95 @@ export default function ItemDetails() {
               </View>
             </Animated.View>
           )}
-          <Pressable style={styles.manageCard} onPress={toggleEdit}>
-            <Text style={styles.manageIcon}>✏️</Text>
-            <Text style={styles.manageLabel}>Modifier</Text>
-          </Pressable>
-
-          <Pressable
-            style={[
-              styles.manageCard,
-              item.active ? styles.deactivateCard : styles.activateCard
-            ]}
-            onPress={handleDeactivate}
-            disabled={deactivateLoading}
-          >
-            <Text style={styles.manageIcon}>
-              {item.active ? "🚫" : "✅"}
-            </Text>
-
-            <Text style={styles.manageLabel}>
-              {item.active ? "Désactiver" : "Activer"}
-            </Text>
-          </Pressable>
-
-        <Pressable style={styles.manageCard} onPress={toggleStats}>
-  <Text style={styles.manageIcon}>📊</Text>
-  <Text style={styles.manageLabel}>Statistiques</Text>
-</Pressable>
-{statsVisible && (
-<Animated.View
-  style={[
-    styles.statsContainer,
-    {
-      maxHeight: statsAnim.interpolate({
-        inputRange: [0, 1],
-        outputRange: [0, 300],
-      }),
-      opacity: statsAnim,
-    },
-  ]}
->
-  <Text style={styles.section}>📊 Statistiques</Text>
-
-  {item.type === "AUCTION" ? (
-    auction ? (
-      <>
-        <Text>👀 Vues : {auction.views ?? 0}</Text>
-        <Text>⭐ Suivis : {auction.watchers ?? 0}</Text>
-        <Text>
-          👥 {auction.participantsCount ?? 0}{" "}
-          {(auction.participantsCount ?? 0) > 1 ? "enchérisseurs" : "enchérisseur"}
-        </Text>
-        <Text style={{ marginTop: 10 }}>💰 Prix initial : {auction.startPrice} $</Text>
-        <Text>📈 Prix actuel : {auction.currentPrice ?? auction.startPrice} $</Text>
-        {auction.reserveReached ? (
-          <Text style={{ color: "#16a34a", fontWeight: "600" }}>✅ Prix de réserve atteint</Text>
-        ) : (
-          <Text style={{ color: "#dc2626", fontWeight: "600" }}>⛔ Prix de réserve non atteint</Text>
-        )}
-      </>
-    ) : (
-      <Text>Aucune enchère active</Text>
-    )
-  ) : item.type === "RENTAL" && rentalStats ? (
-    <>
-      <Text>📦 {rentalStats.rentalsCount} locations</Text>
-      <Text>💰 {rentalStats.totalRevenue} $ générés</Text>
-      <Text>📅 {rentalStats.totalDaysRented} jours loués</Text>
-      {rentalStats.rentalsCount > 5 && (
-        <Text style={{ color: "#16a34a" }}>🔥 Très demandé</Text>
-      )}
-    </>
-  ) : (
-    <Text>Aucune statistique disponible</Text>
-  )}
-</Animated.View>
+         {!isAuctionEnded && (
+  <Pressable style={styles.manageCard} onPress={toggleEdit}>
+    <Text style={styles.manageIcon}>✏️</Text>
+    <Text style={styles.manageLabel}>Modifier</Text>
+  </Pressable>
 )}
+       {item?.type === "AUCTION" ? (
+  auction && auction.status === "OPEN" && (
+    <Pressable
+      style={[styles.manageCard, styles.deactivateCard]} // 🔴 même style rouge
+      onPress={handleCloseAuction}
+    >
+      <Text style={styles.manageIcon}>❌</Text>
+      <Text style={styles.manageLabel}>Annuler l'enchère</Text>
+    </Pressable>
+  )
+) : (
+  !isAuctionEnded && (
+    <Pressable
+      style={[
+        styles.manageCard,
+        item.active ? styles.deactivateCard : styles.activateCard
+      ]}
+      onPress={handleDeactivate}
+      disabled={deactivateLoading}
+    >
+      <Text style={styles.manageIcon}>
+        {item.active ? "🚫" : "✅"}
+      </Text>
+
+      <Text style={styles.manageLabel}>
+        {item.active ? "Désactiver" : "Activer"}
+      </Text>
+    </Pressable>
+  )
+)}
+          <Pressable style={styles.manageCard} onPress={toggleStats}>
+            <Text style={styles.manageIcon}>📊</Text>
+            <Text style={styles.manageLabel}>Statistiques</Text>
+          </Pressable>
+          {statsVisible && (
+            <Animated.View
+              style={[
+                styles.statsContainer,
+                {
+                  maxHeight: statsAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0, 300],
+                  }),
+                  opacity: statsAnim,
+                },
+              ]}
+            >
+              <Text style={styles.section}>📊 Statistiques</Text>
+
+              {item.type === "AUCTION" ? (
+                auction ? (
+                  <>
+                    <Text>👀 Vues : {auction.views ?? 0}</Text>
+                    <Text>⭐ Suivis : {auction.watchers ?? 0}</Text>
+                    <Text>
+                      👥 {auction.participantsCount ?? 0}{" "}
+                      {(auction.participantsCount ?? 0) > 1 ? "enchérisseurs" : "enchérisseur"}
+                    </Text>
+                    <Text style={{ marginTop: 10 }}>💰 Prix initial : {auction.startPrice} $</Text>
+                    <Text>📈 Prix actuel : {auction.currentPrice ?? auction.startPrice} $</Text>
+                    {auction.reserveReached ? (
+                      <Text style={{ color: "#16a34a", fontWeight: "600" }}>✅ Prix de réserve atteint</Text>
+                    ) : (
+                      <Text style={{ color: "#dc2626", fontWeight: "600" }}>⛔ Prix de réserve non atteint</Text>
+                    )}
+                  </>
+                ) : (
+                  <Text>Aucune enchère active</Text>
+                )
+              ) : item.type === "RENTAL" && rentalStats ? (
+                <>
+                  <Text>📦 {rentalStats.rentalsCount} locations</Text>
+                  <Text>💰 {rentalStats.totalRevenue} $ générés</Text>
+                  <Text>📅 {rentalStats.totalDaysRented} jours loués</Text>
+                  {rentalStats.rentalsCount > 5 && (
+                    <Text style={{ color: "#16a34a" }}>🔥 Très demandé</Text>
+                  )}
+                </>
+              ) : (
+                <Text>Aucune statistique disponible</Text>
+              )}
+            </Animated.View>
+          )}
 
         </View>
       )}
@@ -883,9 +1029,9 @@ export default function ItemDetails() {
 
       {/* ======== BID (Non-owner & Premium uniquement) ======== */}
       {item.type === "AUCTION" &&
-        !isOwner &&
-        item.active !== false &&
-        currentUser?.premium && (
+  !isOwner &&
+  !isAuctionEnded &&
+  currentUser?.premium && (
           <>
             <Text style={styles.section}>💰 Placer une enchère</Text>
 
@@ -1028,7 +1174,7 @@ export default function ItemDetails() {
       )}
 
       {/* ======== ENCHÈRE (Visible seulement si AUCTION et owner) ======== */}
-      {item.type === "AUCTION" && isOwner && !auction && (
+      {item.type === "AUCTION" && isOwner && !auction && !isAuctionEnded && (
         <>
 
           <Text style={styles.section}>🔥 Publier l'enchère</Text>
@@ -1074,15 +1220,17 @@ export default function ItemDetails() {
             />
           )}
 
-          <Pressable
-            onPress={handleCreateAuction}
-            style={styles.rentButton}
-            disabled={auctionLoading}
-          >
-            <Text style={{ color: "#fff", textAlign: "center", fontWeight: "600" }}>
-              {auctionLoading ? "Publication..." : "Publier l'enchère"}
-            </Text>
-          </Pressable>
+          {!isAuctionEnded && (
+  <Pressable
+    onPress={handleCreateAuction}
+    style={styles.rentButton}
+    disabled={auctionLoading}
+  >
+    <Text style={{ color: "#fff", textAlign: "center", fontWeight: "600" }}>
+      {auctionLoading ? "Publication..." : "Publier l'enchère"}
+    </Text>
+  </Pressable>
+)}
         </>
       )}
 
@@ -1105,15 +1253,7 @@ export default function ItemDetails() {
 
             <Text>Date de fin : {auction?.endDate}</Text>
 
-            {/* 🔥 BOUTON FERMER */}
-            <Pressable
-              onPress={handleCloseAuction}
-              style={styles.closeAuctionButton}
-            >
-              <Text style={styles.buttonText}>
-                🔒 Fermer l'enchère
-              </Text>
-            </Pressable>
+           
           </>
         )}
 
@@ -1326,10 +1466,10 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   statsContainer: {
-  backgroundColor: "#fff",
-  borderRadius: 12,
-  padding: 15,
-  marginTop: 10,
-  overflow: "hidden",
-},
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 15,
+    marginTop: 10,
+    overflow: "hidden",
+  },
 });

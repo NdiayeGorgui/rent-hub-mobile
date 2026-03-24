@@ -50,3 +50,9 @@ export const closeAuction = async (auctionId: number) => {
 export const updateAuction = async (id: number, data: any) => {
   return API.put(`/auctions/${id}`, data);
 };
+
+
+export const cancelAuction  = async (auctionId: number) => {
+  const res = await API.patch(`/auctions/${auctionId}/cancel`);
+  return res.data;
+};

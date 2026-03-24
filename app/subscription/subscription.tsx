@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
+  TextInput,
 } from "react-native";
 
 import { useState, useEffect } from "react";
@@ -15,12 +16,21 @@ import {
   fetchPremiumStatus,
   cancelSubscription,
 } from "@/src/api/subscriptionService";
+import { handleWebPayment } from "@/src/api/stripeWeb";
 
 export default function SubscriptionScreen() {
-
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
   const [status, setStatus] = useState<any>(null);
+
+  // 🔥 gestion des étapes
+  const [step, setStep] = useState<"home" | "payment">("home");
+
+  // 🔥 formulaire (simulation)
+  const [cardNumber, setCardNumber] = useState("4242424242424242");
+  const [expMonth, setExpMonth] = useState("12");
+  const [expYear, setExpYear] = useState("34");
+  const [cvc, setCvc] = useState("123");
 
   const showAlert = (title: string, message: string) => {
     if (Platform.OS === "web") {
@@ -30,7 +40,7 @@ export default function SubscriptionScreen() {
     }
   };
 
-  // 🔎 charger le statut premium
+  // 🔎 charger statut
   const loadStatus = async () => {
     try {
       const data = await fetchPremiumStatus();
@@ -46,21 +56,34 @@ export default function SubscriptionScreen() {
     loadStatus();
   }, []);
 
-  const handleSubscribe = async () => {
+  // 👉 étape 1 : aller au paiement
+  const handleSubscribe = () => {
+    setStep("payment");
+  };
+
+  // 👉 étape 2 : paiement réel
+  const handleConfirmPayment = async () => {
     try {
       setLoading(true);
 
       const payment = await subscribeToPremium(9.99);
+      const clientSecret = payment.clientSecret;
 
-      console.log("Payment created:", payment);
+      if (!clientSecret) {
+        throw new Error("clientSecret manquant");
+      }
 
-      showAlert("Succès", "Paiement envoyé");
+      if (Platform.OS === "web") {
+        await handleWebPayment(clientSecret);
+      }
+
+      showAlert("Succès", "Paiement effectué 🎉");
 
       await loadStatus();
+      setStep("home");
 
-    } catch (error) {
-      console.log(error);
-      showAlert("Erreur", "Impossible de créer le paiement");
+    } catch (error: any) {
+      showAlert("Erreur", error?.message || "Paiement échoué");
     } finally {
       setLoading(false);
     }
@@ -72,13 +95,11 @@ export default function SubscriptionScreen() {
 
       await cancelSubscription();
 
-      showAlert("Succès", "Le renouvellement automatique est annulé");
-
+      showAlert("Succès", "Renouvellement annulé");
       await loadStatus();
 
     } catch (e) {
-      console.log(e);
-      showAlert("Erreur", "Impossible d'annuler l'abonnement");
+      showAlert("Erreur", "Impossible d'annuler");
     } finally {
       setLoading(false);
     }
@@ -110,21 +131,16 @@ export default function SubscriptionScreen() {
           <TouchableOpacity
             style={styles.manageButton}
             onPress={handleCancel}
-            disabled={loading}
           >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>
-                Annuler le renouvellement
-              </Text>
-            )}
+            <Text style={styles.buttonText}>
+              Annuler l'abonnement
+            </Text>
           </TouchableOpacity>
         </>
       )}
 
       {/* 🟡 Grace period */}
-      {isPremium && isGrace && (
+      {isPremium && isGrace && step === "home" && (
         <>
           <Text style={styles.title}>⚠️ Paiement échoué</Text>
 
@@ -136,28 +152,19 @@ export default function SubscriptionScreen() {
             {new Date(status.endDate).toLocaleDateString()}
           </Text>
 
-          <Text style={styles.description}>
-            Veuillez mettre à jour votre moyen de paiement.
-          </Text>
-
           <TouchableOpacity
             style={styles.button}
             onPress={handleSubscribe}
-            disabled={loading}
           >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>
-                Mettre à jour paiement
-              </Text>
-            )}
+            <Text style={styles.buttonText}>
+              Mettre à jour paiement
+            </Text>
           </TouchableOpacity>
         </>
       )}
 
       {/* 🔴 Pas premium */}
-      {!isPremium && (
+      {!isPremium && step === "home" && (
         <>
           <Text style={styles.title}>👑 Passer au Premium</Text>
 
@@ -172,13 +179,66 @@ export default function SubscriptionScreen() {
           <TouchableOpacity
             style={styles.button}
             onPress={handleSubscribe}
-            disabled={loading}
+          >
+            <Text style={styles.buttonText}>
+              S’abonner maintenant
+            </Text>
+          </TouchableOpacity>
+        </>
+      )}
+
+      {/* 💳 ÉTAPE PAIEMENT */}
+      {step === "payment" && (
+        <>
+          <TouchableOpacity onPress={() => setStep("home")}>
+            <Text style={{ color: "blue", marginBottom: 10 }}>
+              ← Retour
+            </Text>
+          </TouchableOpacity>
+
+          <Text style={styles.title}>💳 Paiement sécurisé</Text>
+
+          <Text style={{ marginBottom: 10, color: "#555" }}>
+            🔒 Redirection vers paiement sécurisé...
+          </Text>
+
+          <Text style={styles.label}>Numéro de carte</Text>
+          <TextInput
+            style={styles.input}
+            value={cardNumber}
+            onChangeText={setCardNumber}
+          />
+
+          <Text style={styles.label}>Mois</Text>
+          <TextInput
+            style={styles.input}
+            value={expMonth}
+            onChangeText={setExpMonth}
+          />
+
+          <Text style={styles.label}>Année</Text>
+          <TextInput
+            style={styles.input}
+            value={expYear}
+            onChangeText={setExpYear}
+          />
+
+          <Text style={styles.label}>CVC</Text>
+          <TextInput
+            style={styles.input}
+            value={cvc}
+            onChangeText={setCvc}
+          />
+
+          <TouchableOpacity
+            style={styles.button}
+            onPress={handleConfirmPayment}
           >
             {loading ? (
               <ActivityIndicator color="#fff" />
             ) : (
               <Text style={styles.buttonText}>
-                Payer maintenant
+                Confirmer le paiement
               </Text>
             )}
           </TouchableOpacity>
@@ -190,7 +250,6 @@ export default function SubscriptionScreen() {
 }
 
 const styles = StyleSheet.create({
-
   container: {
     flex: 1,
     padding: 20,
@@ -227,6 +286,7 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 12,
     alignItems: "center",
+    marginTop: 10,
   },
 
   manageButton: {
@@ -241,4 +301,18 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
 
+  label: {
+    fontSize: 14,
+    marginBottom: 5,
+    fontWeight: "500",
+  },
+
+  input: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 15,
+    backgroundColor: "#fff",
+  },
 });

@@ -6,22 +6,34 @@ import {
   FlatList,
   Alert,
   StyleSheet,
-  Platform
+  Platform,
+  ActivityIndicator,
+  TextInput,
 } from "react-native";
 
 import {
-  confirmPayment,
   getAllPayments,
-  getPendingPayments,
+  refundAuctionFee,
 } from "@/src/api/paymentService.web";
 import { Ionicons } from "@expo/vector-icons";
 
-export default function ConfirmPaymentScreen() {
+export default function PaymentScreen() {
 
-  const [activeTab, setActiveTab] = useState<"list" | "confirm">("list");
+  // 🔥 seulement 2 tabs maintenant
+  const [activeTab, setActiveTab] = useState<"list" | "refund">("list");
+
   const [payments, setPayments] = useState<any[]>([]);
   const [selectedPayment, setSelectedPayment] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+
+  // 🔥 step pour formulaire
+  const [step, setStep] = useState<"list" | "form">("list");
+
+  // 🔥 formulaire simulé
+  const [cardNumber, setCardNumber] = useState("4242424242424242");
+  const [expMonth, setExpMonth] = useState("12");
+  const [expYear, setExpYear] = useState("34");
+  const [cvc, setCvc] = useState("123");
 
   const showAlert = (title: string, message: string) => {
     if (Platform.OS === "web") {
@@ -32,117 +44,64 @@ export default function ConfirmPaymentScreen() {
   };
 
   useEffect(() => {
-
-    if (activeTab === "list") {
-      loadAllPayments();
-    }
-
-    if (activeTab === "confirm") {
-      loadPendingPayments();
-    }
-
+    loadAllPayments();
   }, [activeTab]);
 
   const loadAllPayments = async () => {
-
     try {
-
       const data = await getAllPayments();
       setPayments(data);
-
     } catch {
-
       showAlert("Erreur", "Impossible de charger les paiements");
-
     }
-
   };
 
-  const loadPendingPayments = async () => {
-
-    try {
-
-      const data = await getPendingPayments();
-      setPayments(data);
-
-    } catch {
-
-      showAlert("Erreur", "Impossible de charger les paiements");
-
-    }
-
+  // 👉 étape 1 : ouvrir formulaire
+  const handleStartRefund = () => {
+    setStep("form");
   };
 
-  const handleConfirm = async () => {
-
+  // 👉 étape 2 : refund réel
+  const handleConfirmRefund = async () => {
     if (!selectedPayment) return;
 
     try {
-
       setLoading(true);
 
-      await confirmPayment(selectedPayment.paymentIntentId);
+      await refundAuctionFee(selectedPayment.paymentIntentId);
 
-      showAlert("Succès", "Paiement confirmé");
+      showAlert("Succès", "Refund effectué");
 
       setSelectedPayment(null);
-
-      loadPendingPayments();
+      setStep("list");
+      loadAllPayments();
 
     } catch (error) {
-
-      console.log(error);
-
-      showAlert(
-        "Erreur",
-        "Impossible de confirmer le paiement"
-      );
-
+      showAlert("Erreur", "Impossible de faire le refund");
     } finally {
-
       setLoading(false);
-
     }
-
   };
 
-  
+  const renderStatus = (status: string) => {
+    let color = "#ccc";
 
-const renderStatus = (status: string) => {
+    if (status === "SUCCESS") color = "#4caf50";
+    if (status === "FAILED") color = "#f44336";
+    if (status === "PENDING") color = "#ff9800";
 
-  let color = "#ccc";
-  let label = status;
-
-  if (status === "SUCCESS") {
-    color = "#4caf50";
-    label = "SUCCESS";
-  }
-
-  if (status === "FAILED") {
-    color = "#f44336";
-    label = "FAILED";
-  }
-
-  if (status === "PENDING") {
-    color = "#ff9800";
-    label = "PENDING";
-  }
+    return (
+      <View style={[styles.badge, { backgroundColor: color }]}>
+        <Text style={styles.badgeText}>{status}</Text>
+      </View>
+    );
+  };
 
   return (
-    <View style={[styles.badge, { backgroundColor: color }]}>
-      <Text style={styles.badgeText}>{label}</Text>
-    </View>
-  );
-};
-
-  return (
-
     <View style={styles.container}>
 
       {/* TABS */}
-
       <View style={styles.tabs}>
-
         <TouchableOpacity
           style={[
             styles.tabButton,
@@ -151,14 +110,13 @@ const renderStatus = (status: string) => {
           onPress={() => {
             setActiveTab("list");
             setSelectedPayment(null);
+            setStep("list");
           }}
         >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === "list" && styles.activeTabText,
-            ]}
-          >
+          <Text style={[
+            styles.tabText,
+            activeTab === "list" && styles.activeTabText
+          ]}>
             Tous les paiements
           </Text>
         </TouchableOpacity>
@@ -166,144 +124,111 @@ const renderStatus = (status: string) => {
         <TouchableOpacity
           style={[
             styles.tabButton,
-            activeTab === "confirm" && styles.activeTabButton,
+            activeTab === "refund" && styles.activeTabButton,
           ]}
           onPress={() => {
-            setActiveTab("confirm");
+            setActiveTab("refund");
             setSelectedPayment(null);
+            setStep("list");
           }}
         >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === "confirm" && styles.activeTabText,
-            ]}
-          >
-            Confirmer
+          <Text style={[
+            styles.tabText,
+            activeTab === "refund" && styles.activeTabText
+          ]}>
+            Refund
           </Text>
         </TouchableOpacity>
-
       </View>
 
-      {/* LISTE DES PAYEMENTS */}
-
+      {/* 🟢 LISTE */}
       {activeTab === "list" && (
-
         <FlatList
           data={payments}
           keyExtractor={(item) => item.id.toString()}
           renderItem={({ item }) => (
-
-<View style={styles.card}>
-
-<View style={styles.cardHeader}>
-
-  <View>
-    <Text style={styles.cardTitle}>
-      Paiement #{item.id}
-    </Text>
-
-    <Text style={styles.subText}>
-      {item.userFullName || "Utilisateur inconnu"}
-    </Text>
-  </View>
-
-  {renderStatus(item.status)}
-
-</View>
-
-  <View style={styles.infoRow}>
-    <Ionicons name="card-outline" size={14} color="#16a34a" />
-    <Text style={styles.infoText}>
-      ${item.amount}
-    </Text>
-  </View>
-
-  <View style={styles.infoRow}>
-    <Ionicons name="calendar-outline" size={14} color="#6b7280" />
-    <Text style={styles.infoText}>
-      {new Date(item.createdAt).toLocaleDateString()}
-    </Text>
-  </View>
-
-</View>
-
-          )}
-        />
-
-      )}
-
-      {/* CONFIRMATION */}
-
-      {activeTab === "confirm" && (
-
-        <>
-          {!selectedPayment ? (
-
-            <FlatList
-              data={payments}
-              keyExtractor={(item) => item.id.toString()}
-              ListEmptyComponent={
-                <Text style={styles.empty}>
-                  Aucun paiement à confirmer
+            <View style={styles.card}>
+              <View style={styles.cardHeader}>
+                <Text style={styles.cardTitle}>
+                  Paiement #{item.id}
                 </Text>
-              }
-              renderItem={({ item }) => (
+                {renderStatus(item.status)}
+              </View>
 
-<TouchableOpacity
-  style={[
-    styles.card,
-    selectedPayment?.id === item.id && styles.selectedCard,
-  ]}
-  onPress={() => setSelectedPayment(item)}
->
-
-  <View style={styles.cardHeader}>
-    <Text style={styles.cardTitle}>
-      Paiement #{item.id}
-    </Text>
-
-    {renderStatus(item.status)}
-  </View>
-
-  <View style={styles.infoRow}>
-    <Ionicons name="person-outline" size={14} color="#374151" />
-    <Text style={styles.userText}>
-      {item.userFullName || "Utilisateur inconnu"}
-    </Text>
-  </View>
-
-  <View style={styles.infoRow}>
-    <Ionicons name="card-outline" size={14} color="#16a34a" />
-    <Text style={styles.subText}>
-      ${item.amount}
-    </Text>
-  </View>
-
-</TouchableOpacity>
-
-              )}
-            />
-
-          ) : (
-
-            <View>
-
-              <Text style={styles.sectionTitle}>
-                Confirmer paiement #{selectedPayment.id}
+              <Text style={styles.subText}>
+                {item.userFullName || "Utilisateur inconnu"}
               </Text>
 
               <Text style={styles.subText}>
+                ${item.amount}
+              </Text>
+            </View>
+          )}
+        />
+      )}
+
+      {/* 🔴 REFUND */}
+      {activeTab === "refund" && step === "list" && (
+        <>
+          {!selectedPayment ? (
+            <FlatList
+              data={payments.filter(
+                (p) =>
+                  p.status === "SUCCESS" &&
+                  p.paymentType === "AUCTION_FEE"
+              )}
+              keyExtractor={(item) => item.id.toString()}
+             renderItem={({ item }) => (
+
+  <TouchableOpacity
+    style={[
+      styles.card,
+      selectedPayment?.id === item.id && styles.selectedCard,
+    ]}
+    onPress={() => setSelectedPayment(item)}
+  >
+
+    <View style={styles.cardHeader}>
+      <Text style={styles.cardTitle}>
+        Paiement #{item.id}
+      </Text>
+
+      {renderStatus(item.status)}
+    </View>
+
+    <View style={styles.infoRow}>
+      <Ionicons name="person-outline" size={14} color="#374151" />
+      <Text style={styles.userText}>
+        {item.userFullName || "Utilisateur inconnu"}
+      </Text>
+    </View>
+
+    <View style={styles.infoRow}>
+      <Ionicons name="card-outline" size={14} color="#16a34a" />
+      <Text style={styles.subText}>
+        ${item.amount}
+      </Text>
+    </View>
+
+  </TouchableOpacity>
+)}
+            />
+          ) : (
+            <View>
+              <Text style={styles.sectionTitle}>
+                Refund paiement #{selectedPayment.id}
+              </Text>
+
+              <Text>
                 Montant : ${selectedPayment.amount}
               </Text>
 
               <TouchableOpacity
                 style={styles.primaryButton}
-                onPress={handleConfirm}
-                disabled={loading}
+                onPress={handleStartRefund}
               >
                 <Text style={styles.primaryButtonText}>
-                  {loading ? "Confirmation..." : "Confirmer paiement"}
+                  Continuer
                 </Text>
               </TouchableOpacity>
 
@@ -314,21 +239,78 @@ const renderStatus = (status: string) => {
                   Choisir un autre paiement
                 </Text>
               </TouchableOpacity>
-
             </View>
-
           )}
         </>
       )}
 
+      {/* 💳 FORMULAIRE */}
+      {activeTab === "refund" && step === "form" && (
+        <View>
+
+          <TouchableOpacity onPress={() => setStep("list")}>
+            <Text style={{ color: "blue", marginBottom: 10 }}>
+              ← Retour
+            </Text>
+          </TouchableOpacity>
+
+          <Text style={styles.sectionTitle}>
+            💳 Confirmation Refund
+          </Text>
+
+          <Text style={{ marginBottom: 10 }}>
+            🔒 Vérification sécurisée...
+          </Text>
+
+          <TextInput
+            style={styles.input}
+            value={cardNumber}
+            onChangeText={setCardNumber}
+            placeholder="Numéro carte"
+          />
+
+          <TextInput
+            style={styles.input}
+            value={expMonth}
+            onChangeText={setExpMonth}
+            placeholder="Mois"
+          />
+
+          <TextInput
+            style={styles.input}
+            value={expYear}
+            onChangeText={setExpYear}
+            placeholder="Année"
+          />
+
+          <TextInput
+            style={styles.input}
+            value={cvc}
+            onChangeText={setCvc}
+            placeholder="CVC"
+          />
+
+          <TouchableOpacity
+            style={[styles.primaryButton, { backgroundColor: "#dc2626" }]}
+            onPress={handleConfirmRefund}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.primaryButtonText}>
+                Confirmer Refund
+              </Text>
+            )}
+          </TouchableOpacity>
+
+        </View>
+      )}
+
     </View>
-
   );
-
 }
 
 const styles = StyleSheet.create({
-
   container: {
     flex: 1,
     padding: 20,
@@ -370,38 +352,27 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
 
-  selectedCard: {
-    borderWidth: 2,
-    borderColor: "#2563eb",
+  cardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
-
-cardHeader: {
-  flexDirection: "row",
-  alignItems: "center",
-  justifyContent: "space-between",
-  marginBottom: 6,
-},
 
   cardTitle: {
     fontWeight: "bold",
-    fontSize: 16,
   },
 
   subText: {
     color: "#777",
-    marginTop: 4,
   },
 
   badge: {
     paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 12,
+    borderRadius: 10,
   },
 
   badgeText: {
     color: "white",
     fontSize: 12,
-    fontWeight: "bold",
   },
 
   primaryButton: {
@@ -423,32 +394,34 @@ cardHeader: {
     color: "#888",
   },
 
-  empty: {
-    textAlign: "center",
-    marginTop: 20,
-    color: "#888",
-  },
-
   sectionTitle: {
     fontSize: 18,
     fontWeight: "bold",
     marginBottom: 10,
   },
 
-  userText: {
-    fontWeight: "600",
-    color: "#333",
+  input: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 10,
+    backgroundColor: "#fff",
+  },
+  selectedCard: {
+  borderWidth: 2,
+  borderColor: "#2563eb",
+},
 
-  },
-  infoRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    marginTop: 2,
-  },
+infoRow: {
+  flexDirection: "row",
+  alignItems: "center",
+  gap: 4,
+  marginTop: 4,
+},
 
-  infoText: {
-    fontSize: 13,
-    color: "#374151",
-  },
+userText: {
+  fontWeight: "600",
+  color: "#333",
+},
 });

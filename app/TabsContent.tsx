@@ -1,6 +1,6 @@
-import { Tabs, useFocusEffect, useRouter } from "expo-router";
+import { router, Tabs, useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { TouchableOpacity, View, Text } from "react-native";
+import { TouchableOpacity, View, Text, Pressable } from "react-native";
 import { useCallback, useContext, useState } from "react";
 import { NotificationContext } from "@/src/context/NotificationContext";
 
@@ -35,7 +35,7 @@ export default function TabsContent() {
         headerRight: () => (
           <View style={{ flexDirection: "row", alignItems: "center" }}>
             <PremiumButton />
-            <SupportButton /> 
+           <FaqButton /> 
             <MessageInboxButton />
             <NotificationBell />
           </View>
@@ -247,3 +247,9 @@ function SupportButton() {
     </TouchableOpacity>
   );
 }
+
+export const FaqButton = () => (
+  <Pressable onPress={() => router.push("/faq")} style={{ marginRight: 12 }}>
+    <Ionicons name="help-circle-outline" size={24} color="#2563eb" />
+  </Pressable>
+);

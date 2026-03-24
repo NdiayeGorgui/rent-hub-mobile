@@ -11,8 +11,13 @@ export interface PaymentResponse {
   clientSecret: string;
 }
 
+export interface PaymentIntentResponse {
+  clientSecret: string;
+  intentId: string;
+}
+
 export const subscribeToPremium = async (amount: number) => {
-  const response = await API.post<PaymentResponse>(
+  const response = await API.post<PaymentIntentResponse>(
     "/payments/subscribe",
     { amount }
   );
@@ -40,11 +45,34 @@ export const getPendingPayments = async () => {
 };
 
 export const createAuctionPayment = async (itemId: number) => {
+  const response = await API.post<PaymentIntentResponse>(
+    `/payments/auction-fee/${itemId}`
+  );
+
+  return response.data;
+};
+/*export const createAuctionPayment = async (itemId: number) => {
 
   const response = await API.post<PaymentResponse>(
     `/payments/auction-fee/${itemId}`
   );
 
   return response.data;
+};*/
+
+export const refundAuctionFee = async (paymentIntentId: string) => {
+  return API.post(
+    `/payments/admin/refund-auction-fee?paymentIntentId=${paymentIntentId}`
+  );
+};
+
+export const cancelAuctionPayment = async (data: {
+  auctionId: number;
+  itemId: number;
+  userId: string;
+  amount: number;
+}) => {
+  const res = await API.post("/payments/auction/cancel", data);
+  return res.data;
 };
 

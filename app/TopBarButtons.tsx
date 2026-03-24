@@ -1,5 +1,5 @@
-import { useRouter } from "expo-router";
-import { TouchableOpacity, View, Text, Animated } from "react-native";
+import { router, useRouter } from "expo-router";
+import { TouchableOpacity, View, Text, Animated, Pressable } from "react-native";
 import { useCallback, useContext, useRef, useEffect } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "expo-router";
@@ -188,3 +188,9 @@ export function SupportButton() {
         </TouchableOpacity>
     );
 }
+
+export const FaqButton = () => (
+  <Pressable onPress={() => router.push("/faq")} style={{ marginRight: 12 }}>
+    <Ionicons name="help-circle-outline" size={24} color="#2563eb" />
+  </Pressable>
+);

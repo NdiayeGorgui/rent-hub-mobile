@@ -2,7 +2,7 @@ import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@/src/context/AuthContext";
 import { View } from "react-native";
-import { NotificationBell, PremiumButton ,MessageInboxButton, SupportButton} from "../TopBarButtons";
+import { NotificationBell, PremiumButton ,MessageInboxButton, SupportButton, FaqButton} from "../TopBarButtons";
 
 
 
@@ -21,7 +21,7 @@ export default function TabsLayout() {
         tabBarActiveTintColor: "#2563eb",
         headerRight: () => (
           <View style={{ flexDirection: "row", alignItems: "center" }}>
-             <SupportButton /> 
+            <FaqButton />
             <PremiumButton />
              <MessageInboxButton />
             <NotificationBell />
@@ -127,7 +127,16 @@ export default function TabsLayout() {
           href: isAdmin ? "/confirm-payment" : null,
         }}
       />
-
+<Tabs.Screen
+  name="admin-faq"
+  options={{
+    title: "FAQ",
+    tabBarIcon: ({ color, size }) => (
+      <Ionicons name="help-circle-outline" size={size} color={color} />
+    ),
+     href: isAdmin ? "/admin-faq" : null,
+  }}
+/>
       <Tabs.Screen
         name="dashboard"
         options={{
