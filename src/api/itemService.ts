@@ -130,3 +130,10 @@ export const updateItem = async (id: number, data: any, images: any[]) => {
     headers: { "Content-Type": "multipart/form-data" },
   });
 };
+
+export const getNearbyItems = async (lat: number, lng: number, radiusKm = 10) => {
+  const response = await API.get("/items/nearby", {
+    params: { lat, lng, radiusKm }
+  });
+  return response.data;
+};

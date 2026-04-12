@@ -119,18 +119,25 @@ export default function MyItems() {
                     : "📦 LOCATION"}
                 </Text>
 
-                <Text
-                  style={[
-                    styles.status,
-                    {
-                      backgroundColor: item.active
-                        ? "#16a34a"
-                        : "#dc2626",
-                    },
-                  ]}
-                >
-                  {item.active ? "Actif" : "Désactivé"}
-                </Text>
+               <Text
+  style={[
+    styles.status,
+    {
+      backgroundColor:
+        item.status === "CANCELLED_AUCTION"
+          ? "#facc15" // 🟡 jaune
+          : item.active
+          ? "#16a34a"
+          : "#dc2626",
+    },
+  ]}
+>
+  {item.status === "CANCELLED_AUCTION"
+    ? "Annulée"
+    : item.active
+    ? "Actif"
+    : "Désactivé"}
+</Text>
 
               </View>
 

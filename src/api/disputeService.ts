@@ -13,3 +13,14 @@ export const createDispute = async (data: {
   const res = await API.post("/disputes", data);
   return res.data;
 };
+
+// Litige enchère (nouveau)
+export const createAuctionDispute = async (data: {
+    auctionId: number;
+    reportedUserId: string;
+    reason: string;
+    description?: string;
+}) => {
+    const res = await API.post("/disputes", data);
+    return res.data;
+};

@@ -51,14 +51,7 @@ export const createAuctionPayment = async (itemId: number) => {
 
   return response.data;
 };
-/*export const createAuctionPayment = async (itemId: number) => {
 
-  const response = await API.post<PaymentResponse>(
-    `/payments/auction-fee/${itemId}`
-  );
-
-  return response.data;
-};*/
 
 export const refundAuctionFee = async (paymentIntentId: string) => {
   return API.post(
@@ -75,4 +68,11 @@ export const cancelAuctionPayment = async (data: {
   const res = await API.post("/payments/auction/cancel", data);
   return res.data;
 };
+
+export const payPenalty = async () => {
+    const res = await API.post("/payments/penalty/pay");
+    return res.data; // { clientSecret, intentId }
+};
+
+
 

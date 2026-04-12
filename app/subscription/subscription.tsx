@@ -174,7 +174,7 @@ export default function SubscriptionScreen() {
             - Mise en avant des items
           </Text>
 
-          <Text style={styles.price}>9.99 $ / mois</Text>
+          <Text style={styles.price}>9.99 $ / 6 mois</Text>
 
           <TouchableOpacity
             style={styles.button}

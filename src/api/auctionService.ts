@@ -56,3 +56,13 @@ export const cancelAuction  = async (auctionId: number) => {
   const res = await API.patch(`/auctions/${auctionId}/cancel`);
   return res.data;
 };
+
+export const getMyWonAuctions = async () => {
+    const res = await API.get("/auctions/my/won");
+    return res.data;
+};
+
+export const getMyClosedAuctionsAsOwner = async () => {
+    const res = await API.get("/auctions/my/closed-as-owner");
+    return res.data;
+};

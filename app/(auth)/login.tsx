@@ -10,13 +10,17 @@ import {
 } from "react-native";
 import { useState } from "react";
 import { router } from "expo-router";
-import { loginUser } from "../../src/api/authService";
+import { forgotPassword, loginUser } from "../../src/api/authService";
 import { useAuth } from "@/src/context/AuthContext";
 
 export default function Login() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
+
+    const [showForgot, setShowForgot] = useState(false);
+    const [forgotEmail, setForgotEmail] = useState("");
+    const [forgotLoading, setForgotLoading] = useState(false);
 
     const { login } = useAuth();
 
@@ -62,6 +66,28 @@ export default function Login() {
         }
     };
 
+    const handleForgotPassword = async () => {
+    if (!forgotEmail) {
+        showAlert("Erreur", "Veuillez entrer votre email");
+        return;
+    }
+    try {
+        setForgotLoading(true);
+        await forgotPassword(forgotEmail);
+        showAlert(
+            "Email envoyé",
+            "Si cet email existe, vous recevrez un token de réinitialisation."
+        );
+        setShowForgot(false);
+        // Redirige vers la page reset
+        router.push("/(auth)/reset-password");
+    } catch (error: any) {
+        showAlert("Erreur", "Une erreur est survenue");
+    } finally {
+        setForgotLoading(false);
+    }
+};
+
     return (
         <View style={styles.container}>
             <Text style={styles.logo}>🏠 RentHub</Text>
@@ -95,6 +121,36 @@ export default function Login() {
                     <Text style={styles.buttonText}>Se connecter</Text>
                 )}
             </TouchableOpacity>
+            {/* Lien mot de passe oublié */}
+<TouchableOpacity onPress={() => setShowForgot(!showForgot)}>
+    <Text style={styles.link}>Mot de passe oublié ?</Text>
+</TouchableOpacity>
+
+{/* Formulaire inline mot de passe oublié */}
+{showForgot && (
+    <View style={styles.forgotContainer}>
+        <Text style={styles.forgotTitle}>Réinitialiser le mot de passe</Text>
+        <TextInput
+            placeholder="Votre email"
+            style={styles.input}
+            value={forgotEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            onChangeText={setForgotEmail}
+        />
+        <TouchableOpacity
+            style={styles.forgotButton}
+            onPress={handleForgotPassword}
+            disabled={forgotLoading}
+        >
+            {forgotLoading ? (
+                <ActivityIndicator color="#fff" />
+            ) : (
+                <Text style={styles.buttonText}>Envoyer le token</Text>
+            )}
+        </TouchableOpacity>
+    </View>
+)}
 
             <TouchableOpacity onPress={() => router.push("/(auth)/register")}>
                 <Text style={styles.link}>Créer un compte</Text>
@@ -146,4 +202,25 @@ const styles = StyleSheet.create({
         color: "#2563eb",
         fontWeight: "600",
     },
+    forgotContainer: {
+    backgroundColor: "#fff",
+    padding: 20,
+    borderRadius: 12,
+    marginTop: 10,
+    marginBottom: 10,
+    elevation: 2,
+},
+forgotTitle: {
+    fontWeight: "bold",
+    marginBottom: 10,
+    color: "#333",
+    textAlign: "center",
+},
+forgotButton: {
+    backgroundColor: "#10b981",
+    padding: 15,
+    borderRadius: 12,
+    alignItems: "center",
+    marginTop: 5,
+},
 });

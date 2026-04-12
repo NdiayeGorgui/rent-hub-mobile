@@ -15,6 +15,7 @@ import { useRouter } from "expo-router";
 import { Picker } from "@react-native-picker/picker";
 import * as ImagePicker from "expo-image-picker";
 import { Image } from "react-native";
+import * as Location from "expo-location";
 
 export default function Create() {
   const router = useRouter();
@@ -100,6 +101,20 @@ export default function Create() {
         return;
       }
 
+      const { status } = await Location.requestForegroundPermissionsAsync();
+
+if (status !== "granted") {
+  showAlert("Permission refusée", "Activez la localisation");
+  return;
+}
+
+const location = await Location.getCurrentPositionAsync({
+  accuracy: Location.Accuracy.High,
+});
+
+const latitude = location.coords.latitude;
+const longitude = location.coords.longitude;
+
       const formData = new FormData();
 
       const itemData = {
@@ -110,6 +125,8 @@ export default function Create() {
         pricePerDay: type === "RENTAL" ? Number(pricePerDay) : null,
         city,
         address,
+         latitude,  
+  longitude,  
       };
 
       formData.append("data", JSON.stringify(itemData));
