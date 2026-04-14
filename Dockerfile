@@ -1,5 +1,5 @@
 # =========================
-# STAGE 1 - BUILD REACT
+# STAGE 1 - BUILD
 # =========================
 FROM node:18-alpine AS build
 
@@ -9,6 +9,8 @@ COPY package*.json ./
 RUN npm install
 
 COPY . .
+
+# 👉 Build Expo Web / Vite / React
 RUN npm run build
 
 # =========================
@@ -19,11 +21,11 @@ FROM nginx:alpine
 # Supprimer config par défaut
 RUN rm -rf /etc/nginx/conf.d/default.conf
 
-# Ajouter ta config custom
+# Ajouter config nginx
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Copier build React
-COPY --from=build /app/build /usr/share/nginx/html
+# 👉 IMPORTANT : Expo / Vite = dist (PAS build)
+COPY --from=build /app/dist /usr/share/nginx/html
 
 EXPOSE 80
 
