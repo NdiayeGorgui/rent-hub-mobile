@@ -8,6 +8,7 @@
     "android": "expo start --android --port 8181",
     "ios": "expo start --ios --port 8181",
     "web": "expo start --web --port 8181",
+    "build": "expo export",
     "lint": "expo lint"
   },
   "dependencies": {
