@@ -74,5 +74,5 @@ jobs:
           context: .
           push: true
           tags: ${{ steps.meta.outputs.tags }}
-          cache-from: type=registry,ref=gorgui/renthub-frontend:buildcache
-          cache-to: type=registry,ref=gorgui/renthub-frontend:buildcache,mode=max
+          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/renthub-frontend:buildcache
+          cache-to: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/renthub-frontend:buildcache,mode=max
