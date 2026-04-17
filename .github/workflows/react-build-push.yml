@@ -61,7 +61,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: gorgui/renthub-frontend
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/renthub-frontend
           tags: |
             type=sha
             type=ref,event=branch
