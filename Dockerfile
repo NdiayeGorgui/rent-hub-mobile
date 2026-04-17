@@ -1,16 +1,20 @@
 # =========================
 # STAGE 1 - BUILD
 # =========================
-FROM node:18-alpine AS build
+FROM node:20-alpine AS build
 
 WORKDIR /app
 
+# Copy package files
 COPY package*.json ./
-RUN npm install
 
+# Install deps (plus fiable en CI)
+RUN npm ci
+
+# Copy app
 COPY . .
 
-# 👉 Build Expo Web / Vite / React
+# Build Expo Web
 RUN npm run build
 
 # =========================
@@ -18,13 +22,13 @@ RUN npm run build
 # =========================
 FROM nginx:alpine
 
-# Supprimer config par défaut
+# Remove default config
 RUN rm -rf /etc/nginx/conf.d/default.conf
 
-# Ajouter config nginx
+# Add custom config
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# 👉 IMPORTANT : Expo / Vite = dist (PAS build)
+# Copy build output
 COPY --from=build /app/dist /usr/share/nginx/html
 
 EXPOSE 80
