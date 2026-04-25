@@ -117,16 +117,7 @@ export default function TabsLayout() {
         }}
       />
 
-      <Tabs.Screen
-        name="confirm-payment"
-        options={{
-          title: "Gérer payments",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="cash-outline" size={size} color={color} />
-          ),
-          href: isAdmin ? "/confirm-payment" : null,
-        }}
-      />
+  
 <Tabs.Screen
   name="admin-faq"
   options={{
