@@ -131,7 +131,7 @@ export function MessageInboxButton() {
         >
             <View>
 
-                <Ionicons name="mail-outline" size={24} color="#111" />
+                <Ionicons name="chatbubble-outline" size={24} color="#111" />
 
                 {unreadMessages > 0 && (
                     <View

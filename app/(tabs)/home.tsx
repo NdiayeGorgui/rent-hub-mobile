@@ -17,12 +17,12 @@ import { Platform } from "react-native";
 import { getAuctionPublicByItemId } from "../../src/api/auctionService";
 import * as Location from "expo-location";
 
+
 export default function Home() {
 
-  const baseURL =
-    Platform.OS === "android"
-      ? "http://10.0.2.2:8080"
-      : "http://localhost:8080";
+  const baseURL = Platform.OS === "android"
+    ? "http://192.168.0.118:8080"  // Android (émulateur ET vrai téléphone)
+    : "http://192.168.0.118:8080"; // 
 
   const categories = [
     { id: 1, name: "Électronique" },
@@ -65,6 +65,8 @@ export default function Home() {
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [nearbyMode, setNearbyMode] = useState(false);
   const [radius, setRadius] = useState(10);
+  const [auctionLoading, setAuctionLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadItems();
@@ -76,6 +78,24 @@ export default function Home() {
     }, 1000);
     return () => clearInterval(interval);
   }, []);
+
+  const onRefresh = async () => {
+    try {
+      setRefreshing(true);
+
+      // 🔥 reset pagination
+      setPage(0);
+      setHasMore(true);
+
+      // recharge les données
+      await loadItems();
+
+    } catch (error) {
+      console.log(error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const showAlert = (title: string, message: string) => {
     if (Platform.OS === "web") {
@@ -124,12 +144,34 @@ export default function Home() {
       setLoading(false);
     }
   };
+  const getImage = (item: any) => {
+    const baseURL = "http://192.168.0.118:8080";
 
+    // ✅ cas tableau
+    if (item.imageUrls && item.imageUrls.length > 0) {
+      const url = item.imageUrls[0];
+      return url.startsWith("http") ? url : `${baseURL}${url}`;
+    }
+
+    // ✅ cas string
+    if (item.imageUrl) {
+      let url = item.imageUrl;
+
+      // 🔥 FIX localhost → IP
+      if (url.includes("localhost")) {
+        url = url.replace("localhost", "192.168.0.118");
+      }
+
+      return url;
+    }
+
+    return null;
+  };
   const loadMore = async () => {
     if (!hasMore || loading) return;
     try {
       const nextPage = page + 1;
-      const filters: any = { page: nextPage, size: 10, sortBy, direction };
+      const filters: any = { page: nextPage, size: 12, sortBy, direction };
       if (keyword) filters.keyword = keyword;
       if (city) filters.city = city;
       if (categoryId !== "") filters.categoryId = Number(categoryId);
@@ -138,15 +180,44 @@ export default function Home() {
       if (minRating) filters.minRating = Number(minRating);
       if (type) filters.type = type;
       const data = await searchItems(filters);
-      setItems((prev) => [...prev, ...data]);
+
+      // ← seulement les nouveaux IDs pour éviter doublons
+      const existingIds = new Set(items.map(i => i.id));
+      const newItems = data.filter((i: any) => !existingIds.has(i.id));
+
+      setItems(prev => [...prev, ...newItems]);
       setPage(nextPage);
       if (data.length < 10) setHasMore(false);
+
+      // ← merge auction data
+      const auctions: Record<number, any> = {};
+      for (const item of newItems) {
+        if (item.type === "AUCTION") {
+          try {
+            const auction = await getAuctionPublicByItemId(item.id);
+            auctions[item.id] = {
+              currentPrice: auction?.currentPrice ?? null,
+              startPrice: auction?.startPrice ?? null,
+              participants: auction?.participantsCount ?? 0,
+              views: auction?.views ?? 0,
+              watchers: auction?.watchers ?? 0,
+              endDate: auction?.endDate ?? null,
+            };
+          } catch {
+            auctions[item.id] = { currentPrice: null, startPrice: null, participants: 0, views: 0, watchers: 0, endDate: null };
+          }
+        }
+      }
+      // ← merge sans écraser l'existant
+      setAuctionData(prev => ({ ...prev, ...auctions }));
+
     } catch (error) {
       console.log(error);
     }
   };
 
   const loadAuctionPrices = async (items: any[]) => {
+    setAuctionLoading(true); // ← ajoute
     const auctions: Record<number, any> = {};
     for (const item of items) {
       if (item.type === "AUCTION") {
@@ -169,6 +240,7 @@ export default function Home() {
       }
     }
     setAuctionData(auctions);
+    setAuctionLoading(false); // ← ajoute
   };
 
   const getTimeLeft = (endDate?: string | null) => {
@@ -187,8 +259,9 @@ export default function Home() {
 
   const handleSearch = async () => {
     try {
+      setShowFilters(false);
       setLoading(true);
-      const filters: any = { page: 0, size: 10, sortBy, direction };
+      const filters: any = { page: 0, size: 12, sortBy, direction };
       if (keyword) filters.keyword = keyword;
       if (city) filters.city = city;
       if (categoryId !== "") filters.categoryId = Number(categoryId);
@@ -197,9 +270,14 @@ export default function Home() {
       if (minRating) filters.minRating = Number(minRating);
       if (type) filters.type = type;
       const data = await searchItems(filters);
-      setItems(data);
+
+      console.log("🔍 SEARCH RESULT:", JSON.stringify(data[0])); // ← ajoute ça
+
+      setItems(data.content);
       setPage(0);
-      setHasMore(data.length === 10);
+      setHasMore(!data.last);
+      await loadAuctionPrices(data);
+
     } catch (error) {
       console.log(error);
     } finally {
@@ -263,14 +341,15 @@ export default function Home() {
                 onPress={() => {
                   setRadius(r);
                   if (userLocation) {
-                    getNearbyItems(userLocation.lat, userLocation.lng, r).then((data) => {
+                    const effectiveRadius = r === 50 ? 500 : r; // ← ajoute
+                    getNearbyItems(userLocation.lat, userLocation.lng, effectiveRadius).then((data) => {
                       setItems(data);
                       loadAuctionPrices(data);
                     });
                   }
                 }}
               >
-                <Text style={radius === r ? { color: "#fff" } : {}}>{r} km</Text>
+                <Text style={radius === r ? { color: "#fff" } : {}}>{r === 50 ? "50 km +" : `${r} km`}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -308,15 +387,16 @@ export default function Home() {
               onChangeText={setMaxPrice}
               style={styles.inputHalf}
             />
-          </View>
-          <View style={styles.row}>
             <TextInput
-              placeholder="Note min (1-5) ⭐"
+              placeholder="Note(1-5)⭐"
               keyboardType="numeric"
               value={minRating}
               onChangeText={setMinRating}
               style={styles.inputHalf}
             />
+          </View>
+          <View style={styles.row}>
+
             <View style={styles.pickerHalf}>
               <Picker selectedValue={categoryId} onValueChange={setCategoryId}>
                 <Picker.Item label="Catégorie" value="" />
@@ -325,17 +405,6 @@ export default function Home() {
                 ))}
               </Picker>
             </View>
-          </View>
-          <View style={styles.row}>
-            <TouchableOpacity style={styles.sortButton} onPress={() => { setSortBy("createdAt"); setDirection("DESC"); }}>
-              <Text>Plus récents</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.sortButton} onPress={() => { setSortBy("pricePerDay"); setDirection("ASC"); }}>
-              <Text>Prix ↑</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.sortButton} onPress={() => { setSortBy("pricePerDay"); setDirection("DESC"); }}>
-              <Text>Prix ↓</Text>
-            </TouchableOpacity>
             <View style={styles.typePicker}>
               <Picker selectedValue={type} onValueChange={setType}>
                 <Picker.Item label="Type" value="" />
@@ -345,11 +414,23 @@ export default function Home() {
             </View>
           </View>
           <View style={styles.row}>
+            <TouchableOpacity style={styles.sortButton} onPress={() => { setSortBy("createdAt"); setDirection("DESC"); }}>
+              <Text>+ Récents</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.sortButton} onPress={() => { setSortBy("pricePerDay"); setDirection("ASC"); }}>
+              <Text>Prix ↑</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.sortButton} onPress={() => { setSortBy("pricePerDay"); setDirection("DESC"); }}>
+              <Text>Prix ↓</Text>
+            </TouchableOpacity>
+
+          </View>
+          <View style={styles.row}>
             <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
               <Text style={{ color: "#fff" }}>Rechercher</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.resetButton} onPress={resetFilters}>
-              <Text>Reset</Text>
+              <Text>Éffacer</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -360,67 +441,100 @@ export default function Home() {
       ) : (
         <FlatList
           data={items}
-          keyExtractor={(item) => item.id.toString()}
+          keyExtractor={(item, index) => `${item.id}-${item.imageUrls?.[0] ?? index}`}
           onEndReached={loadMore}
           onEndReachedThreshold={0.5}
-          ListFooterComponent={hasMore ? <ActivityIndicator style={{ margin: 10 }} /> : null}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.card}
-              onPress={() => router.push({ pathname: "/item/[id]", params: { id: item.id.toString() } })}
-            >
-              {(item.imageUrls?.length > 0 || item.imageUrl) && (
-                <Image
-                  source={{ uri: item.imageUrls ? `${baseURL}${item.imageUrls[0]}` : item.imageUrl }}
-                  style={styles.image}
-                />
-              )}
+          refreshing={refreshing}          // 👈 AJOUT
+          onRefresh={onRefresh}            // 👈 AJOUT
+          renderItem={({ item }) => {
 
-              <View style={styles.badgeContainer}>
-                <Text style={[styles.badge, item.type === "AUCTION" ? styles.auctionBadge : styles.rentalBadge]}>
-                  {item.type === "AUCTION" ? "🔥 ENCHÈRE" : "📦 LOCATION"}
-                </Text>
-              </View>
+            // 🔥 FIX IMAGE ICI
+            let uri: string | null = null;
 
-              <Text style={styles.title}>{item.title}</Text>
-              <Text>{truncate(item.description, 120)}</Text>
+            // cas 1 : tableau imageUrls
+            if (item.imageUrls && item.imageUrls.length > 0) {
+              const url = item.imageUrls[0];
+              uri = url.startsWith("http") ? url : `${baseURL}${url}`;
+            }
 
-              {/* ✅ Badge distance — ICI dans le renderItem */}
-              {item.distanceLabel && (
-                <Text style={styles.distanceBadge}>📍 {item.distanceLabel}</Text>
-              )}
+            // cas 2 : imageUrl (searchItems)
+            else if (item.imageUrl) {
+              let url = item.imageUrl;
 
-              {item.type !== "AUCTION" && item.pricePerDay != null && (
-                <Text style={styles.price}>{item.pricePerDay} $/jour</Text>
-              )}
+              // 🔥 corriger localhost pour mobile
+              if (url.includes("localhost")) {
+                url = url.replace("localhost", "192.168.0.118");
+              }
 
-              {item.type === "AUCTION" && (
-                <>
-                  <Text style={styles.price}>
-                    {auctionData[item.id]?.currentPrice != null
-                      ? `💰 Prix actuel : ${auctionData[item.id].currentPrice} $`
-                      : "Enchère pas encore commencée"}
+              uri = url;
+            }
+
+            return (
+              <TouchableOpacity
+                style={styles.card}
+                onPress={() => router.push({ pathname: "/item/[id]", params: { id: item.id.toString() } })}
+              >
+
+                {/* ✅ IMAGE FIX */}
+                {uri && (
+                  <Image
+                    source={{ uri }}
+                    style={styles.image}
+                    resizeMode="contain"
+                    onLoad={() => console.log("✅ Image loaded:", uri)}
+                    onError={(e) => console.log("❌ Image error:", uri, e.nativeEvent.error)}
+                  />
+                )}
+
+                <View style={styles.badgeContainer}>
+                  <Text style={[styles.badge, item.type === "AUCTION" ? styles.auctionBadge : styles.rentalBadge]}>
+                    {item.type === "AUCTION" ? "🔥 ENCHÈRE" : "📦 LOCATION"}
                   </Text>
-                  {auctionData[item.id]?.startPrice != null && (
-                    <Text style={{ fontSize: 12, color: "#666" }}>
-                      💰 Prix initial : {auctionData[item.id].startPrice} $
+                </View>
+
+                <Text style={styles.title}>{item.title}</Text>
+                <Text>{truncate(item.description, 120)}</Text>
+
+                {item.distanceLabel && (
+                  <Text style={styles.distanceBadge}>📍 {item.distanceLabel}</Text>
+                )}
+
+                {item.type !== "AUCTION" && item.pricePerDay != null && (
+                  <Text style={styles.price}>{item.pricePerDay} $/jour</Text>
+                )}
+
+                {item.type === "AUCTION" && (
+                  <>
+                    <Text style={styles.price}>
+                      {auctionData[item.id]?.currentPrice != null
+                        ? `💰 Prix actuel : ${auctionData[item.id].currentPrice} $`
+                        : "Enchère pas encore commencée"}
                     </Text>
-                  )}
-                  <Text style={{ fontSize: 12 }}>
-                    👀 {auctionData[item.id]?.views ?? 0} vues • ⭐ {auctionData[item.id]?.watchers ?? 0} suivent
-                  </Text>
-                  <Text style={{ fontSize: 12, marginTop: 2 }}>
-                    👥 {auctionData[item.id]?.participants ?? 0}{" "}
-                    {(auctionData[item.id]?.participants ?? 0) > 1 ? "enchérisseurs" : "enchérisseur"}{" "}
-                    {(auctionData[item.id]?.participants ?? 0) >= 5 && "🔥 Compétition active"}
-                  </Text>
-                  {auctionData[item.id]?.endDate && (
-                    <Text style={styles.timer}>⏳ {getTimeLeft(auctionData[item.id].endDate)}</Text>
-                  )}
-                </>
-              )}
-            </TouchableOpacity>
-          )}
+
+                    {auctionData[item.id]?.startPrice != null && (
+                      <Text style={{ fontSize: 12, color: "#666" }}>
+                        💰 Prix initial : {auctionData[item.id].startPrice} $
+                      </Text>
+                    )}
+
+                    <Text style={{ fontSize: 12 }}>
+                      👀 {auctionData[item.id]?.views ?? 0} vues • ⭐ {auctionData[item.id]?.watchers ?? 0} suivent
+                    </Text>
+
+                    <Text style={{ fontSize: 12, marginTop: 2 }}>
+                      👥 {auctionData[item.id]?.participants ?? 0}{" "}
+                      {(auctionData[item.id]?.participants ?? 0) > 1 ? "enchérisseurs" : "enchérisseur"}{" "}
+                      {(auctionData[item.id]?.participants ?? 0) >= 5 && "🔥 Compétition active"}
+                    </Text>
+
+                    {auctionData[item.id]?.endDate && (
+                      <Text style={styles.timer}>⏳ {getTimeLeft(auctionData[item.id].endDate)}</Text>
+                    )}
+                  </>
+                )}
+              </TouchableOpacity>
+            );
+          }}
         />
       )}
     </View>
@@ -474,7 +588,7 @@ const styles = StyleSheet.create({
     flex: 1,
     borderWidth: 1,
     borderColor: "#ddd",
-    padding: 10,
+    padding: 4,
     borderRadius: 8,
   },
 
@@ -493,9 +607,11 @@ const styles = StyleSheet.create({
   },
 
   sortButton: {
+    flex: 1,                // 🔥 IMPORTANT
     backgroundColor: "#eee",
     padding: 8,
     borderRadius: 6,
+    alignItems: "center",   // centre le texte
   },
 
   searchButton: {
@@ -563,9 +679,10 @@ const styles = StyleSheet.create({
   },
   image: {
     width: "100%",
-    height: 160,
+    aspectRatio: 4 / 3,      // ← hauteur dynamique selon ratio
     borderRadius: 10,
     marginBottom: 10,
+    backgroundColor: "#f0f0f0", // ← fond si image non carrée
   },
   typePicker: {
     flex: 1,
@@ -587,31 +704,31 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 10,
     flex: 1,
-},
-nearbyButtonActive: {
+  },
+  nearbyButtonActive: {
     backgroundColor: "#059669",
-},
-nearbyButtonText: {
+  },
+  nearbyButtonText: {
     color: "#fff",
     fontWeight: "600",
-},
-radiusContainer: {
+  },
+  radiusContainer: {
     flexDirection: "row",
     gap: 6,
     alignItems: "center",
-},
-radiusBtn: {
+  },
+  radiusBtn: {
     backgroundColor: "#eee",
     padding: 8,
     borderRadius: 6,
-},
-radiusBtnActive: {
+  },
+  radiusBtnActive: {
     backgroundColor: "#2563eb",
-},
-distanceBadge: {
+  },
+  distanceBadge: {
     fontSize: 12,
     color: "#10b981",
     fontWeight: "600",
     marginTop: 4,
-},
+  },
 });

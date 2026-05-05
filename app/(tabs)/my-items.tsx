@@ -13,12 +13,12 @@ import { fetchMyItems } from "../../src/api/itemService";
 import { router } from "expo-router";
 import { Platform } from "react-native";
 
+
 export default function MyItems() {
 
-  const baseURL =
-    Platform.OS === "android"
-      ? "http://10.0.2.2:8080"
-      : "http://localhost:8080";
+  const baseURL = Platform.OS === "android"
+    ? "http://192.168.0.118:8080"  // Android (émulateur ET vrai téléphone)
+    : "http://192.168.0.118:8080"; // 
 
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,92 +59,96 @@ export default function MyItems() {
 
       <Text style={styles.title}>Mes objets</Text>
 
-      {items.length === 0 ? (
-        <Text style={styles.empty}>
-          Vous n'avez encore publié aucun objet.
-        </Text>
-      ) : (
-        <FlatList
-          data={items}
-          keyExtractor={(item) => item.id.toString()}
+      <FlatList
+        data={items}
+        keyExtractor={(item) => item.id.toString()}
 
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
 
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.card}
-              onPress={() =>
-                router.push({
-                  pathname: "/my-items/[id]",
-                  params: { id: item.id.toString() },
-                })
-              }
-            >
+        ListEmptyComponent={
+          !loading ? (
+            <Text style={styles.empty}>
+              Vous n'avez encore publié aucun objet.
+            </Text>
+          ) : null
+        }
 
-              {(item.imageUrls?.length > 0 || item.imageUrl) && (
-                <Image
-                  source={{
-                    uri: item.imageUrls
-                      ? `${baseURL}${item.imageUrls[0]}`
-                      : item.imageUrl,
-                  }}
-                  style={styles.image}
-                />
-              )}
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            style={styles.card}
+            onPress={() =>
+              router.push({
+                pathname: "/my-items/[id]",
+                params: { id: item.id.toString() },
+              })
+            }
+          >
 
-              <Text style={styles.titleItem}>{item.title}</Text>
+            {(item.imageUrls?.length > 0 || item.imageUrl) && (
+              <Image
+                source={{
+                  uri: item.imageUrls
+                    ? `${baseURL}${item.imageUrls[0]}`
+                    : item.imageUrl,
+                }}
+                style={styles.image}
+                resizeMode="contain"
+              />
+            )}
 
-              <Text style={styles.city}>{item.city}</Text>
+            <Text style={styles.titleItem}>{item.title}</Text>
 
-              {item.type === "RENTAL" && (
-                <Text style={styles.price}>
-                  {item.pricePerDay} $ / jour
-                </Text>
-              )}
+            <Text style={styles.city}>{item.city}</Text>
 
-              <View style={styles.badgeRow}>
+            {item.type === "RENTAL" && (
+              <Text style={styles.price}>
+                {item.pricePerDay} $ / jour
+              </Text>
+            )}
 
-                <Text
-                  style={[
-                    styles.badge,
-                    item.type === "AUCTION"
-                      ? styles.auctionBadge
-                      : styles.rentalBadge,
-                  ]}
-                >
-                  {item.type === "AUCTION"
-                    ? "🔥 ENCHÈRE"
-                    : "📦 LOCATION"}
-                </Text>
+            <View style={styles.badgeRow}>
 
-               <Text
-  style={[
-    styles.status,
-    {
-      backgroundColor:
-        item.status === "CANCELLED_AUCTION"
-          ? "#facc15" // 🟡 jaune
-          : item.active
-          ? "#16a34a"
-          : "#dc2626",
-    },
-  ]}
->
-  {item.status === "CANCELLED_AUCTION"
-    ? "Annulée"
-    : item.active
-    ? "Actif"
-    : "Désactivé"}
-</Text>
+              <Text
+                style={[
+                  styles.badge,
+                  item.type === "AUCTION"
+                    ? styles.auctionBadge
+                    : styles.rentalBadge,
+                ]}
+              >
+                {item.type === "AUCTION"
+                  ? "🔥 ENCHÈRE"
+                  : "📦 LOCATION"}
+              </Text>
 
-              </View>
+              <Text
+                style={[
+                  styles.status,
+                  {
+                    backgroundColor:
+                      item.status === "CANCELLED_AUCTION"
+                        ? "#facc15"
+                        : item.active
+                          ? "#16a34a"
+                          : "#dc2626",
+                  },
+                ]}
+              >
+                {item.status === "CANCELLED_AUCTION"
+                  ? "Annulée"
+                  : item.active
+                    ? "Actif"
+                    : "Désactivé"}
+              </Text>
 
-            </TouchableOpacity>
-          )}
-        />
-      )}
+            </View>
+
+          </TouchableOpacity>
+        )}
+      />
+
     </View>
   );
 }
@@ -185,9 +189,10 @@ const styles = StyleSheet.create({
 
   image: {
     width: "100%",
-    height: 160,
+    aspectRatio: 4 / 3,      // ← hauteur dynamique selon ratio
     borderRadius: 10,
     marginBottom: 10,
+    backgroundColor: "#f0f0f0", // ← fond si image non carrée
   },
 
   titleItem: {

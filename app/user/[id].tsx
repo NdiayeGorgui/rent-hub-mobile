@@ -45,8 +45,10 @@ export default function UserProfile() {
             </Text>
 
             <Text>
-                ⭐ Note : {user.averageRating.toFixed(1)} ({user.reviewsCount} avis)
-            </Text>
+  {user.averageRating
+    ? `${user.averageRating.toFixed(1)} ⭐ (${user.reviewsCount ?? 0} avis)`
+    : "Aucune note"}
+</Text>
 
             {user.premium && (
                 <Text style={{ color: "#f59e0b" }}>

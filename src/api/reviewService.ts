@@ -29,3 +29,8 @@ export const getReviewsByUser = async (userId: string) => {
   const response = await API.get(`/reviews/user/${userId}`);
   return response.data;
 };
+
+export const getAllReviewsForUser = async (userId: string) => {
+  const res = await API.get(`/reviews/user/${userId}/all`);
+  return res.data;
+};

@@ -55,7 +55,7 @@ export default function AdminDashboard() {
                     marginBottom: 10,
                 }}
             >
-                Admin Dashboard
+                Tableau de bord Admin
             </Text>
 
             {/* USERS */}
@@ -142,7 +142,7 @@ export default function AdminDashboard() {
             <View style={{ flexDirection: "row" }}>
                 <StatCard
                     title="Revenue"
-                    value={`$${stats.totalRevenue}`}
+                    value={`$${stats.totalRevenue.toFixed(2)}`}
                     icon="cash-outline"
                     color="#10b981"
                 />

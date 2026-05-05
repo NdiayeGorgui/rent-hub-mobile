@@ -17,6 +17,9 @@ import {
 } from "@/src/api/adminDisputeService";
 
 import { fetchItemDetails } from "@/src/api/itemService";
+import { getStatusLabel } from "@/src/utils/statusUtils";
+import { RefreshControl } from "react-native";
+
 
 export default function AdminDisputesScreen() {
     const [activeTab, setActiveTab] = useState<"list" | "resolve">("list");
@@ -26,11 +29,26 @@ export default function AdminDisputesScreen() {
     const [adminComment, setAdminComment] = useState("");
     const [itemsMap, setItemsMap] = useState<Record<number, any>>({});
     const [action, setAction] = useState<string | null>(null);
+    const [refreshing, setRefreshing] = useState(false);
 
     useEffect(() => {
         loadDisputes();
     }, []);
 
+    const onRefresh = async () => {
+        setRefreshing(true);
+        await loadDisputes();
+        setRefreshing(false);
+    };
+
+    const getDecisionLabel = (decision: string) => {
+        const map: Record<string, string> = {
+            RESOLVED: "Approuvé",
+            REJECTED: "Rejeté",
+        };
+
+        return map[decision] ?? decision;
+    };
     const loadDisputes = async () => {
         try {
             const data = await getAllDisputesAdmin();
@@ -94,7 +112,7 @@ export default function AdminDisputesScreen() {
         };
         return (
             <View style={[styles.badge, { backgroundColor: colors[status] ?? "#ccc" }]}>
-                <Text style={styles.badgeText}>{status}</Text>
+                <Text style={styles.badgeText}>{getStatusLabel(status)}</Text>
             </View>
         );
     };
@@ -134,7 +152,23 @@ export default function AdminDisputesScreen() {
                 <FlatList
                     data={disputes}
                     keyExtractor={(item) => item.id.toString()}
-                    ListEmptyComponent={<Text style={styles.emptyText}>Aucun litige</Text>}
+
+                    contentContainerStyle={{ flexGrow: 1 }}
+
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={refreshing}
+                            onRefresh={onRefresh}
+                        />
+                    }
+
+                    ListEmptyComponent={() => (
+                        <View style={{ alignItems: "center", marginTop: 80 }}>
+                            <Text style={{ fontSize: 50 }}>⚖️</Text>
+                            <Text style={styles.emptyText}>Aucun litige</Text>
+                        </View>
+                    )}
+
                     renderItem={({ item }) => (
                         <View style={styles.card}>
                             <View style={styles.cardHeader}>
@@ -150,7 +184,9 @@ export default function AdminDisputesScreen() {
                                 </View>
                                 {renderStatusBadge(item.status)}
                             </View>
+
                             <Text style={styles.reason}>{item.reason}</Text>
+
                             {item.adminDecision && (
                                 <Text style={{ marginTop: 6, fontStyle: "italic", color: "#444" }}>
                                     Décision admin : {item.adminDecision}
@@ -170,12 +206,29 @@ export default function AdminDisputesScreen() {
                             <FlatList
                                 data={openDisputes}
                                 keyExtractor={(item) => item.id.toString()}
-                                ListEmptyComponent={
-                                    <Text style={styles.emptyText}>Aucun litige à résoudre</Text>
+
+                                contentContainerStyle={{ flexGrow: 1 }}
+
+                                refreshControl={
+                                    <RefreshControl
+                                        refreshing={refreshing}
+                                        onRefresh={onRefresh}
+                                    />
                                 }
+
+                                ListEmptyComponent={() => (
+                                    <View style={{ alignItems: "center", marginTop: 80 }}>
+                                        <Text style={{ fontSize: 50 }}>📭</Text>
+                                        <Text style={styles.emptyText}>Aucun litige à résoudre</Text>
+                                    </View>
+                                )}
+
                                 renderItem={({ item }) => (
                                     <TouchableOpacity
-                                        style={[styles.card, selectedDispute?.id === item.id && styles.selectedCard]}
+                                        style={[
+                                            styles.card,
+                                            selectedDispute?.id === item.id && styles.selectedCard
+                                        ]}
                                         onPress={() => {
                                             setSelectedDispute(item);
                                             setDecision(null);
@@ -186,11 +239,13 @@ export default function AdminDisputesScreen() {
                                         <Text style={styles.cardTitle}>
                                             {itemsMap[item.itemId]?.title ?? "Loading..."}
                                         </Text>
+
                                         <Text style={styles.subText}>
                                             {item.rentalId
                                                 ? `📦 Location #${item.rentalId}`
                                                 : `🔥 Enchère #${item.auctionId}`}
                                         </Text>
+
                                         <Text style={styles.reason}>{item.reason}</Text>
                                     </TouchableOpacity>
                                 )}
@@ -303,7 +358,7 @@ export default function AdminDisputesScreen() {
                                 {decision && (
                                     <View style={styles.summaryBox}>
                                         <Text style={styles.summaryText}>
-                                            Décision : <Text style={{ fontWeight: "bold" }}>{decision}</Text>
+                                            Décision : <Text style={{ fontWeight: "bold" }}> {getDecisionLabel(decision)}</Text>
                                         </Text>
                                         {action && (
                                             <Text style={styles.summaryText}>
@@ -327,7 +382,7 @@ export default function AdminDisputesScreen() {
                                     style={[
                                         styles.validateBtn,
                                         (!decision || (decision === "RESOLVED" && !action) || !adminComment.trim())
-                                            && styles.validateBtnDisabled
+                                        && styles.validateBtnDisabled
                                     ]}
                                     onPress={handleResolve}
                                 >

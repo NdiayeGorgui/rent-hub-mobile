@@ -1,242 +1,319 @@
 import { useLocalSearchParams } from "expo-router"
-import { View, TextInput, Pressable, Text, FlatList } from "react-native"
-import { useEffect, useRef, useState } from "react"
-
 import {
-  sendMessage,
-  getConversationMessages,
-  markMessageAsRead,
-  sendSupportMessage
-} from "@/src/api/messageService"
-
+  View, TextInput, Pressable, Text, FlatList,
+  KeyboardAvoidingView, Platform, TouchableOpacity, Alert
+} from "react-native"
+import { useEffect, useRef, useState, useContext } from "react"
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
+import * as ImagePicker from "expo-image-picker"
+import * as SecureStore from "expo-secure-store"
+import { Image } from "react-native"
+import { getConversationMessages, markMessageAsRead } from "@/src/api/messageService"
 import { getCurrentUser } from "@/src/api/authService"
-import { useContext } from "react"
 import { MessageContext } from "@/src/context/MessageContext"
 
+const BASE_URL = "http://192.168.0.118:8080"
+
 export default function ChatScreen() {
-    
-// params
-const { conversationId, receiverId, itemId, receiverUsername } = useLocalSearchParams()
+  const { conversationId, receiverId, itemId, receiverUsername } = useLocalSearchParams()
+  const insets = useSafeAreaInsets()
 
-// ✅ receiver (toujours string ou null)
-const receiver = receiverId ? String(receiverId) : null
+  const receiver = receiverId ? String(receiverId) : null
+  const item = itemId && itemId !== "SUPPORT" ? Number(itemId) : null
+  const otherUsername = receiverUsername ? String(receiverUsername) : "Utilisateur"
 
-// ✅ support
-const isSupportChat =
-  receiver === "SUPPORT" ||
-  itemId === "SUPPORT" ||
-  itemId === undefined ||
-  itemId === null
+  const [convId, setConvId] = useState<number | null>(
+    conversationId ? Number(conversationId) : null
+  )
+  const convIdRef = useRef<number | null>(convId)
 
-// ✅ item (peut être null pour support)
-const item =
-  itemId && itemId !== "SUPPORT"
-    ? Number(itemId)
-    : null
+  const [messages, setMessages] = useState<any[]>([])
+  const [content, setContent] = useState("")
+  const [user, setUser] = useState<any>(null)
+  const [pendingImage, setPendingImage] = useState<any>(null)
+  const [sending, setSending] = useState(false)
 
-// ✅ username affiché
-const otherUsername = isSupportChat
-  ? "Support"
-  : receiverUsername
-    ? String(receiverUsername)
-    : "Utilisateur"
+  const { loadUnreadMessages } = useContext(MessageContext)
+  const flatListRef = useRef<FlatList>(null)
 
-// ✅ states
-const [hasMarkedRead, setHasMarkedRead] = useState(false)
+  useEffect(() => { convIdRef.current = convId }, [convId])
 
-const [convId, setConvId] = useState<number | null>(
-  conversationId ? Number(conversationId) : null
-)
+  useEffect(() => {
+    flatListRef.current?.scrollToEnd({ animated: true })
+  }, [messages])
 
-const [messages, setMessages] = useState<any[]>([])
-const [content, setContent] = useState("")
-const [user, setUser] = useState<any>(null)
-
-const { loadUnreadMessages } = useContext(MessageContext)
-
-const loadMessages = async (currentUser?: any) => {
-
-  if (!convId) return
-
-  const data = await getConversationMessages(convId)
-
-  setMessages(data)
-
-  for (const msg of data) {
-
-    if (msg.receiverId === currentUser?.userId && !msg.read) {
-      await markMessageAsRead(msg.id)
+  // ── Init ─────────────────────────────────────────────
+  useEffect(() => {
+    const init = async () => {
+      const u = await getCurrentUser()
+      setUser(u)
+      if (convIdRef.current) await loadMessages(u)
     }
+    init()
+  }, [])
 
-  }
+  // ── Refresh auto ──────────────────────────────────────
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (convIdRef.current) loadMessages()
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [convId])
 
-  await loadUnreadMessages()
-
-}
-
-const flatListRef = useRef<FlatList>(null)
-
-useEffect(() => {
-  flatListRef.current?.scrollToEnd({ animated: true })
-}, [messages])
-
-useEffect(() => {
-const init = async () => {
-
-  const u = await getCurrentUser()
-
-  setUser(u)
-
-  if (convId) {
-    await loadMessages(u)
-  }
-
-}
-
-  init()
-console.log("========== INIT ==========")
-console.log("conversationId:", conversationId)
-console.log("receiverId:", receiverId)
-console.log("itemId:", itemId)
-console.log("receiver:", receiver)
-console.log("isSupportChat:", isSupportChat)
-}, [])
-
-
-// ⭐ refresh automatique du chat
-useEffect(() => {
-
-  const interval = setInterval(() => {
-
-    if (convId) {
-      loadMessages()
-    }
-
-  }, 5000)
-
-  return () => clearInterval(interval)
-
-}, [convId])
-
-const handleSend = async () => {
-  if (!content) return;
-
-  try {
-    let msg;
-
-    if (isSupportChat) {
-
-      // ✅ ADMIN doit fournir receiverId
-      if (user?.roles?.includes("ADMIN")) {
-        if (!receiver || receiver === "SUPPORT") {
-          console.log("❌ Admin must have receiverId for support conversation");
-          return;
+  // ── Load messages ─────────────────────────────────────
+  const loadMessages = async (currentUser?: any) => {
+    if (!convIdRef.current) return
+    try {
+      const data = await getConversationMessages(convIdRef.current)
+      setMessages(data)
+      for (const msg of data) {
+        if (msg.receiverId === currentUser?.userId && !msg.read) {
+          await markMessageAsRead(msg.id)
         }
+      }
+      await loadUnreadMessages()
+    } catch (err) {
+      console.log("loadMessages error:", err)
+    }
+  }
 
-        msg = await sendSupportMessage({
-          receiverId: receiver, // l'utilisateur à qui il répond
-          content
-        });
-      } 
-      // ✅ USER n'a pas besoin de receiverId
-      else {
-        msg = await sendSupportMessage({
-          content
-        });
+  // ── Sélection image ───────────────────────────────────
+  const pickImage = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync()
+    if (!permission.granted) {
+      Alert.alert("Permission refusée", "Accès aux images refusé")
+      return
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      quality: 0.8,
+    })
+    if (!result.canceled) {
+      setPendingImage(result.assets[0])
+    }
+  }
+
+  // ── Envoi unifié texte + image ────────────────────────
+  const handleSend = async () => {
+    if (!content.trim() && !pendingImage) return
+
+    try {
+      setSending(true)
+      const token = await SecureStore.getItemAsync("token")
+
+      // CAS 1 — pas encore de conversation (premier message, texte seulement)
+      if (!convIdRef.current) {
+        if (!receiver) return
+        const formData = new FormData()
+        // On crée d'abord la conversation via le endpoint classique
+        const res = await fetch(`${BASE_URL}/api/messages/send`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            receiverId: receiver,
+            itemId: item,
+            content: content.trim() || "👋",
+          }),
+        })
+        const msg = await res.json()
+        if (msg?.conversationId) {
+          convIdRef.current = msg.conversationId
+          setConvId(msg.conversationId)
+        }
+        setMessages(prev => [...prev, msg])
+        setContent("")
+        setPendingImage(null)
+        return
       }
 
-    } else {
-      // Normal user-user
-      if (!receiver) return;
+      // CAS 2 — conversation existe → send-with-image
+      const formData = new FormData()
+      formData.append("conversationId", String(convIdRef.current))
+      if (content.trim()) formData.append("content", content.trim())
+      if (pendingImage) {
+        formData.append("image", {
+          uri: pendingImage.uri,
+          type: pendingImage.mimeType ?? "image/jpeg",
+          name: "chat_image.jpg",
+        } as any)
+      }
 
-      msg = await sendMessage({
-        receiverId: receiver,
-        itemId: item,
-        content
-      });
+      console.log("📦 Envoi formData:")
+      console.log("conversationId:", convIdRef.current)
+      console.log("content:", content.trim())
+      console.log("image:", pendingImage?.uri)
+
+      const response = await fetch(`${BASE_URL}/api/messages/send-with-image`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      })
+
+      console.log("📡 STATUS:", response.status)
+      const msg = await response.json()
+      console.log("✅ MSG:", JSON.stringify(msg))
+
+      setMessages(prev => [...prev, msg])
+      setContent("")
+      setPendingImage(null)
+
+    } catch (err) {
+      console.log("❌ Send error:", err)
+      Alert.alert("Erreur", "Impossible d'envoyer")
+    } finally {
+      setSending(false)
     }
-
-    setContent("");
-    if (!convId && msg?.conversationId) {
-      setConvId(msg.conversationId);
-    }
-    setMessages(prev => [...prev, msg]);
-
-  } catch (error) {
-    console.log("❌ Send message error:", error);
   }
-};
 
-const renderItem = ({ item }: any) => {
-
-  const isMe = item.senderId === user?.userId
-
-  return (
-
-    <View
-      style={{
+  // ── Render message ────────────────────────────────────
+  const renderItem = ({ item }: any) => {
+    const isMe = item.senderId === user?.userId
+    return (
+      <View style={{
         alignSelf: isMe ? "flex-end" : "flex-start",
         backgroundColor: isMe ? "#2563eb" : "#e5e7eb",
-        padding: 10,
-        borderRadius: 10,
-        marginVertical: 5,
-        maxWidth: "70%"
-      }}
-    >
+        padding: item.imageUrl && !item.content ? 4 : 10,
+        borderRadius: 12,
+        marginVertical: 4,
+        maxWidth: "75%",
+      }}>
+        <Text style={{
+          fontWeight: "bold", marginBottom: 4, fontSize: 11,
+          color: isMe ? "#dbeafe" : "#6b7280",
+          paddingHorizontal: item.imageUrl && !item.content ? 6 : 0,
+          paddingTop: item.imageUrl && !item.content ? 4 : 0,
+        }}>
+          {isMe ? "Vous" : otherUsername}
+        </Text>
 
-      <Text style={{ fontWeight:"bold", marginBottom:2 }}>
-        {isMe ? "Vous" : otherUsername}
-      </Text>
+        {/* Image */}
+        {item.imageUrl && (
+          <Image
+            source={{ uri: `${BASE_URL}${item.imageUrl}` }}
+            style={{
+              width: 200, aspectRatio: 1,
+              borderRadius: 8,
+              marginBottom: item.content ? 6 : 0,
+            }}
+            resizeMode="contain"
+          />
+        )}
 
-      <Text style={{ color: isMe ? "#fff" : "#000" }}>
-        {item.content}
-      </Text>
+        {/* Texte */}
+        {item.content && (
+          <Text style={{ color: isMe ? "#fff" : "#000" }}>
+            {item.content}
+          </Text>
+        )}
+      </View>
+    )
+  }
 
-    </View>
+  return (
+    <SafeAreaView style={{ flex: 1 }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={insets.top + 10}
+      >
+        <View style={{ flex: 1 }}>
 
+          {/* Messages */}
+          <FlatList
+            ref={flatListRef}
+            data={messages}
+            keyExtractor={(item) => item.id.toString()}
+            renderItem={renderItem}
+            contentContainerStyle={{ padding: 15, paddingBottom: 10 }}
+            onContentSizeChange={() =>
+              flatListRef.current?.scrollToEnd({ animated: true })
+            }
+            keyboardShouldPersistTaps="handled"
+          />
+
+          {/* Preview image en attente */}
+          {pendingImage && (
+            <View style={{
+              marginHorizontal: 12, marginBottom: 6,
+              alignSelf: "flex-start", position: "relative",
+            }}>
+              <Image
+                source={{ uri: pendingImage.uri }}
+                style={{ width: 70, height: 70, borderRadius: 8 }}
+                resizeMode="contain"
+              />
+              <Pressable
+                onPress={() => setPendingImage(null)}
+                style={{
+                  position: "absolute", top: -6, right: -6,
+                  backgroundColor: "rgba(0,0,0,0.7)", borderRadius: 10,
+                  width: 20, height: 20,
+                  justifyContent: "center", alignItems: "center",
+                }}
+              >
+                <Text style={{ color: "#fff", fontSize: 12, fontWeight: "bold" }}>×</Text>
+              </Pressable>
+            </View>
+          )}
+
+          {/* Zone saisie */}
+          <View style={{
+            flexDirection: "row", alignItems: "center",
+            paddingHorizontal: 10, paddingTop: 8,
+            paddingBottom: insets.bottom + 10,
+            backgroundColor: "#f4f6f9", gap: 8,
+          }}>
+
+            {/* Bouton spirale */}
+            <TouchableOpacity
+              onPress={pickImage}
+              style={{
+                width: 40, height: 40, borderRadius: 20,
+                backgroundColor: pendingImage ? "#10b981" : "#e5e7eb",
+                alignItems: "center", justifyContent: "center",
+              }}
+            >
+              <Text style={{ fontSize: 18 }}>
+                {pendingImage ? "🖼️" : "📎"}
+              </Text>
+            </TouchableOpacity>
+
+            {/* Input */}
+            <TextInput
+              value={content}
+              onChangeText={setContent}
+              placeholder="Votre message..."
+              multiline
+              style={{
+                flex: 1,
+                backgroundColor: "#fff",
+                paddingHorizontal: 12,
+                paddingVertical: 10,
+                borderRadius: 20,
+                maxHeight: 100,
+              }}
+            />
+
+            {/* Envoyer */}
+            <Pressable
+              onPress={handleSend}
+              disabled={(!content.trim() && !pendingImage) || sending}
+              style={{
+                width: 40, height: 40, borderRadius: 20,
+                backgroundColor: (!content.trim() && !pendingImage) || sending
+                  ? "#9ca3af" : "#2563eb",
+                alignItems: "center", justifyContent: "center",
+              }}
+            >
+              <Text style={{ color: "#fff", fontSize: 16 }}>➤</Text>
+            </Pressable>
+
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   )
-
-}
-
-return (
-
-<View style={{ flex: 1, padding: 15 }}>
-
-<FlatList
-  ref={flatListRef}
-  data={messages}
-  keyExtractor={(item) => item.id.toString()}
-  renderItem={renderItem}
-/>
-
-<TextInput
-  value={content}
-  onChangeText={setContent}
-  placeholder="Votre message..."
-  style={{
-    backgroundColor: "#fff",
-    padding: 10,
-    borderRadius: 8,
-    marginTop: 10
-  }}
-/>
-
-<Pressable
-  onPress={handleSend}
-  style={{
-    backgroundColor: "#2563eb",
-    padding: 12,
-    borderRadius: 8,
-    marginTop: 10
-  }}
->
-  <Text style={{ color: "#fff", textAlign: "center" }}>
-    Envoyer
-  </Text>
-</Pressable>
-
-</View>
-
-)
-
 }

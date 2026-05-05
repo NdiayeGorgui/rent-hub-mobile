@@ -29,8 +29,8 @@ export default function CreateReviewScreen() {
         "Confirmation",
         message,
         [
-          { text: "Cancel", style: "cancel" },
-          { text: "Submit", onPress: onConfirm },
+          { text: "Annuler", style: "cancel" },
+          { text: "Soumettre", onPress: onConfirm },
         ]
       );
     }
@@ -38,17 +38,17 @@ export default function CreateReviewScreen() {
 
   const handleSubmit = () => {
     if (!rentalId) {
-      showAlert("Error", "Missing rental ID");
+      showAlert("Error", "ID de location manquant");
       return;
     }
 
     if (rating < 1 || rating > 5) {
-      showAlert("Error", "Rating must be between 1 and 5");
+      showAlert("Error", "La note doit être comprise entre 1 et 5.");
       return;
     }
 
     showConfirm(
-      "Submit your review? This action cannot be undone.",
+      "Soumettre votre avis ? Cette action est irréversible.",
       async () => {
         try {
           setLoading(true);
@@ -59,7 +59,7 @@ export default function CreateReviewScreen() {
             comment,
           });
 
-          showAlert("Success", "Review submitted");
+          showAlert("Success", "Avis soumis");
 
           // 🧹 RESET FORM
           setRating(5);
@@ -71,7 +71,7 @@ export default function CreateReviewScreen() {
         } catch (error: any) {
           showAlert(
             "Error",
-            error?.response?.data?.message || "Review failed"
+            error?.response?.data?.message || "Échec de l'avis"
           );
         } finally {
           setLoading(false);
@@ -82,10 +82,10 @@ export default function CreateReviewScreen() {
   return (
     <View style={{ flex: 1, padding: 20, backgroundColor: "#f3f4f6" }}>
       <Text style={{ fontSize: 22, fontWeight: "bold", marginBottom: 20 }}>
-        Leave a Review
+        Laisser un avis
       </Text>
 
-      <Text>Rating (1 - 5)</Text>
+      <Text>Note (1 - 5)</Text>
       <TextInput
         value={rating.toString()}
         onChangeText={(text) => setRating(Number(text))}
@@ -100,7 +100,7 @@ export default function CreateReviewScreen() {
         }}
       />
 
-      <Text>Comment</Text>
+      <Text>Commentaire</Text>
       <TextInput
         value={comment}
         onChangeText={setComment}
@@ -129,7 +129,7 @@ export default function CreateReviewScreen() {
           <ActivityIndicator color="#fff" />
         ) : (
           <Text style={{ color: "#fff", textAlign: "center", fontWeight: "bold" }}>
-            Submit Review
+           Soumettre l'avis
           </Text>
         )}
       </Pressable>

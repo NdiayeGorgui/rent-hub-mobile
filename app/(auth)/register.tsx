@@ -6,16 +6,22 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
-  Platform,
   Alert,
 } from "react-native";
 import { useState } from "react";
 import { router } from "expo-router";
 import { registerUser } from "../../src/api/authService";
 
+import {
+  KeyboardAvoidingView,
+  Platform,
+} from "react-native";
+
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+
 export default function Register() {
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
+  const insets = useSafeAreaInsets();
 
   const [form, setForm] = useState({
     username: "",
@@ -26,12 +32,17 @@ export default function Register() {
     city: "",
   });
 
+  const fields = [
+  { key: "username", placeholder: "Nom d'utilisateur" },
+  { key: "email", placeholder: "Email" },
+  { key: "password", placeholder: "Mot de passe" },
+  { key: "fullName", placeholder: "Nom complet" },
+  { key: "phone", placeholder: "Téléphone" },
+  { key: "city", placeholder: "Ville" },
+];
+
   const showAlert = (title: string, message: string) => {
-    if (Platform.OS === "web") {
-      window.alert(`${title}\n\n${message}`);
-    } else {
-      Alert.alert(title, message);
-    }
+    Alert.alert(title, message);
   };
 
   const handleChange = (key: string, value: string) => {
@@ -39,7 +50,6 @@ export default function Register() {
   };
 
   const handleRegister = async () => {
-
     if (!form.email || !form.password || !form.username) {
       showAlert("Erreur", "Veuillez remplir les champs obligatoires");
       return;
@@ -59,7 +69,6 @@ export default function Register() {
       }, 800);
 
     } catch (error: any) {
-
       console.log("ERROR:", error?.response);
 
       const message =
@@ -74,39 +83,55 @@ export default function Register() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.logo}>Créer un compte</Text>
-
-      {Object.keys(form).map((key) => (
-        <TextInput
-          key={key}
-          placeholder={key}
-          secureTextEntry={key === "password"}
-          style={styles.input}
-          value={(form as any)[key]}
-          onChangeText={(text) => handleChange(key, text)}
-        />
-      ))}
-
-      <TouchableOpacity
-        style={styles.button}
-        onPress={handleRegister}
-        disabled={loading}
+  <SafeAreaView style={{ flex: 1 }}>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={20}
+    >
+      <ScrollView
+        contentContainerStyle={{
+          flexGrow: 1,
+          justifyContent: "center",
+          padding: 25,
+          paddingBottom: insets.bottom + 20,
+        }}
+        keyboardShouldPersistTaps="handled"
       >
-        {loading ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.buttonText}>S'inscrire</Text>
-        )}
-      </TouchableOpacity>
+        <Text style={styles.logo}>Créer un compte</Text>
 
-      <TouchableOpacity onPress={() => router.back()}>
-        <Text style={styles.link}>
-          Déjà un compte ? Se connecter
-        </Text>
-      </TouchableOpacity>
-    </ScrollView>
-  );
+       {fields.map((field) => (
+  <TextInput
+    key={field.key}
+    placeholder={field.placeholder}
+    secureTextEntry={field.key === "password"}
+    style={styles.input}
+    value={(form as any)[field.key]}
+    onChangeText={(text) => handleChange(field.key, text)}
+  />
+))}
+
+        <TouchableOpacity
+          style={styles.button}
+          onPress={handleRegister}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.buttonText}>S'inscrire</Text>
+          )}
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => router.back()}>
+          <Text style={styles.link}>
+            Déjà un compte ? Se connecter
+          </Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </KeyboardAvoidingView>
+  </SafeAreaView>
+);
 }
 
 const styles = StyleSheet.create({

@@ -19,7 +19,8 @@ import { hasReviewedRental } from "@/src/api/reviewService";
 import { fetchItemDetails } from "@/src/api/itemService";
 import { fetchUserProfile } from "@/src/api/authService";
 
-import { useRouter, useFocusEffect,Link } from "expo-router";
+import { useRouter, useFocusEffect, Link } from "expo-router";
+import { RefreshControl } from "react-native";
 
 export default function RentalsScreen() {
   const router = useRouter();
@@ -33,6 +34,7 @@ export default function RentalsScreen() {
 
   const [loading, setLoading] = useState(false);
   const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   // =========================
   // LOAD DATA
@@ -49,6 +51,15 @@ export default function RentalsScreen() {
       const filtered = data.filter((r) => r.status !== "CANCELLED");
 
       setRentals(filtered);
+
+      // =========================
+      // Refresh
+      // =========================
+      const onRefresh = async () => {
+        setRefreshing(true);
+        await loadData();
+        setRefreshing(false);
+      };
 
       // =========================
       // LOAD ITEMS
@@ -114,6 +125,7 @@ export default function RentalsScreen() {
     }
 
     setLoading(false);
+    setRefreshing(false);
   };
 
   useFocusEffect(
@@ -165,6 +177,30 @@ export default function RentalsScreen() {
     });
   };
 
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case "CREATED":
+        return "Créé";
+      case "APPROVED":
+        return "Approuvé";
+      case "CANCELLED":
+        return "Annulé";
+      case "ONGOING":
+        return "En cours";
+      case "ENDED":
+        return "Terminé";
+      default:
+        return status;
+    }
+  };
+
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadData();
+    setRefreshing(false);
+  };
+
   // =========================
   // STATUS COLOR
   // =========================
@@ -211,26 +247,89 @@ export default function RentalsScreen() {
         </Text>
 
         <Text style={{ color: "#6b7280", marginBottom: 6 }}>
-  {mode === "owner" ? (
-    <Link
-      href={{
-        pathname: "/user/[id]",
-        params: { id: renter?.userId },
-      }}
-      style={{ color: "#2563eb" }}
-    >
-      Locataire: @{renter?.username ?? "..."}
-    </Link>
-  ) : (
-    `Propriétaire: @${itemDetails?.publisher?.username ?? "..."}`
-  )}
-</Text>
+       {mode === "owner" ? (
+  <Link
+    href={{
+      pathname: "/user/[id]",
+      params: { id: renter?.userId },
+    }}
+    style={{ color: "#2563eb" }}
+  >
+    Locataire: @{renter?.username ?? "..."}
+  </Link>
+) : (
+  <Link
+    href={{
+      pathname: "/user/[id]",
+      params: { id: itemDetails?.publisher?.userId },
+    }}
+    style={{ color: "#2563eb" }}
+  >
+    Propriétaire: @{itemDetails?.publisher?.username ?? "..."}
+  </Link>
+)}
+        </Text>
 
         <Text style={{ color: getStatusColor(item.status) }}>
-          {item.status}
+          Statut: {getStatusLabel(item.status)}
         </Text>
 
         <Text>Total: {item.totalPrice} $</Text>
+        {/* ACTIONS */}
+<View style={{ flexDirection: "row", marginTop: 10, gap: 6 }}>
+
+  {/* 🔍 Voir item */}
+  <Pressable
+    onPress={() => router.push(`/item/${item.itemId}`)}
+    style={{
+      flex: 1,
+      backgroundColor: "#fff",
+      borderWidth: 1,
+      borderColor: "#ddd",
+      padding: 8,
+      borderRadius: 6,
+    }}
+  >
+    <Text style={{ textAlign: "center" }}>
+      🔍 Voir item
+    </Text>
+  </Pressable>
+
+  {/* ✉️ Contacter */}
+  <Pressable
+    onPress={() => {
+      const receiverId =
+        mode === "owner"
+          ? item.renterId
+          : itemDetails?.publisher?.userId;
+
+      const username =
+        mode === "owner"
+          ? renter?.username
+          : itemDetails?.publisher?.username;
+
+      router.push({
+        pathname: "/messages/chat",
+        params: {
+          receiverId,
+          itemId: item.itemId,
+          receiverUsername: username ?? "",
+        },
+      });
+    }}
+    style={{
+      flex: 1,
+      backgroundColor: "#10b981",
+      padding: 8,
+      borderRadius: 6,
+    }}
+  >
+    <Text style={{ color: "#fff", textAlign: "center" }}>
+      ✉️ Contacter
+    </Text>
+  </Pressable>
+
+</View>
         <Text>Date début: {item.startDate}</Text>
         <Text>Date fin: {item.endDate}</Text>
 
@@ -246,7 +345,7 @@ export default function RentalsScreen() {
             }}
           >
             <Text style={{ color: "#fff", textAlign: "center" }}>
-              Leave Review
+              Laisser un avis
             </Text>
           </Pressable>
         )}
@@ -298,6 +397,7 @@ export default function RentalsScreen() {
 
   return (
     <View style={{ flex: 1, padding: 16, backgroundColor: "#f3f4f6" }}>
+
       {/* SEGMENT CONTROL */}
       <View style={{ flexDirection: "row", marginBottom: 20 }}>
         <Pressable
@@ -311,7 +411,7 @@ export default function RentalsScreen() {
           }}
         >
           <Text style={{ color: "#fff", textAlign: "center" }}>
-            My Rentals
+            Mes locations
           </Text>
         </Pressable>
 
@@ -326,25 +426,52 @@ export default function RentalsScreen() {
           }}
         >
           <Text style={{ color: "#fff", textAlign: "center" }}>
-            My Items
+            Items que je loue
           </Text>
         </Pressable>
       </View>
 
-      {loading ? (
-        <ActivityIndicator size="large" />
-      ) : (
-        <FlatList
-          data={rentals}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={renderItem}
-          ListEmptyComponent={
-            <Text style={{ textAlign: "center", marginTop: 40 }}>
-              No rentals found
-            </Text>
-          }
-        />
+      <FlatList
+        data={rentals}
+        keyExtractor={(item) => item.id.toString()}
+        renderItem={renderItem}
+
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+
+        ListEmptyComponent={() => {
+          if (loading) return null;
+
+          return (
+            <View style={{ alignItems: "center", marginTop: 50 }}>
+              <Text style={{ fontSize: 40 }}>📦</Text>
+              <Text style={{ color: "#555", marginTop: 10 }}>
+                Aucune location
+              </Text>
+            </View>
+          );
+        }}
+      />
+
+      {/* 🔥 LOADING OVERLAY */}
+      {loading && (
+        <View
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            justifyContent: "center",
+            alignItems: "center",
+            backgroundColor: "rgba(255,255,255,0.6)",
+          }}
+        >
+          <ActivityIndicator size="large" />
+        </View>
       )}
+
     </View>
   );
 }

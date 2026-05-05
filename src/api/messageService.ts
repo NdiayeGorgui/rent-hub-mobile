@@ -37,3 +37,8 @@ export const sendSupportMessage = async (data: any) => {
   const res = await API.post("/messages/support", data);
   return res.data;
 };
+
+export const sendMessageWithImage = async (formData: FormData) => {
+  const res = await API.post("/messages/send-with-image", formData);
+  return res.data;
+};

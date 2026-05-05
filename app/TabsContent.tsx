@@ -249,7 +249,7 @@ function SupportButton() {
 }
 
 export const FaqButton = () => (
-  <Pressable onPress={() => router.push("/faq")} style={{ marginRight: 12 }}>
+  <Pressable onPress={() => router.push("./faq")} style={{ marginRight: 12 }}>
     <Ionicons name="help-circle-outline" size={24} color="#2563eb" />
   </Pressable>
 );

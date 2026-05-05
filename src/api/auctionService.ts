@@ -66,3 +66,13 @@ export const getMyClosedAuctionsAsOwner = async () => {
     const res = await API.get("/auctions/my/closed-as-owner");
     return res.data;
 };
+
+export const getMyLaunchedAuctions = async () => {
+  const res = await API.get("/auctions/my/launched");
+  return res.data;
+};
+
+export const getMyParticipatingAuctions = async () => {
+  const res = await API.get("/auctions/my/participating");
+  return res.data;
+};

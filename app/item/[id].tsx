@@ -3,6 +3,9 @@ import {
   Text,
   StyleSheet,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  TouchableWithoutFeedback,
+  Keyboard,
   ScrollView,
   Image,
   Platform,
@@ -14,8 +17,12 @@ import { TextInput, Pressable, Alert } from "react-native";
 import { createRental } from "../../src/api/rentalService";
 import { createAuction, getAuctionByItemId, isWatchingAuction, placeBid, watchAuction } from "../../src/api/auctionService";
 import { getCurrentUser } from "../../src/api/authService";
-import { getReviewsByItem, getReviewsByUser, getReviewsCountByItem } from "@/src/api/reviewService";
+import { getReviewsByItem, getReviewsByUser, getReviewsCountByItem,getAllReviewsForUser } from "@/src/api/reviewService";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { ScrollView as HorizontalScroll, Dimensions } from "react-native";
+
+
 
 export default function ItemDetails() {
   const { id } = useLocalSearchParams();
@@ -26,6 +33,7 @@ export default function ItemDetails() {
   const [endDate, setEndDate] = useState("");
   const [rentLoading, setRentLoading] = useState(false);
   const [timeLeft, setTimeLeft] = useState("");
+  const insets = useSafeAreaInsets();
 
   const [isOwner, setIsOwner] = useState(false);
   const [startPrice, setStartPrice] = useState("");
@@ -49,15 +57,28 @@ export default function ItemDetails() {
   const [showAuctionPicker, setShowAuctionPicker] = useState(false);
   const [isWatching, setIsWatching] = useState(false);
   const [reservePrice, setReservePrice] = useState("");
-  
+  const { width } = Dimensions.get("window");
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+
+  const isAuctionEnded =
+    item?.type === "AUCTION" &&
+    auction !== null &&
+    item?.active === false &&
+    item?.status !== "CANCELLED_AUCTION";
+
+  const isAuctionClosed =
+    item?.type === "AUCTION" &&
+    auction !== null &&
+    (item?.status === "CANCELLED_AUCTION" || item?.active === false);
+
+
+
   const router = useRouter();
-  
 
-  const baseURL =
-    Platform.OS === "android"
-      ? "http://10.0.2.2:8080"
-      : "http://localhost:8080";
 
+  const baseURL = Platform.OS === "android"
+    ? "http://192.168.0.118:8080"  // Android (émulateur ET vrai téléphone)
+    : "http://192.168.0.118:8080"; // 
 
 
   useEffect(() => {
@@ -83,25 +104,25 @@ export default function ItemDetails() {
           try {
             const auctionData = await getAuctionByItemId(Number(id));
 
-setAuction({
-  ...auctionData,
-  views: auctionData.views ?? 0,
-  watchers: auctionData.watchers ?? 0,
-  currentPrice:
-    auctionData?.currentPrice ??
-    auctionData?.startPrice ??
-    null,
-});
-          // 🔥 Vérifier si l’utilisateur suit déjà cette enchère
-   if (user?.userId) {
-  const watching = await isWatchingAuction(auctionData.id);
-  setIsWatching(watching);
-}
-  } catch (err) {
-    console.log("No auction yet for this item");
-    setAuction(null);
-  }
-}
+            setAuction({
+              ...auctionData,
+              views: auctionData.views ?? 0,
+              watchers: auctionData.watchers ?? 0,
+              currentPrice:
+                auctionData?.currentPrice ??
+                auctionData?.startPrice ??
+                null,
+            });
+            // 🔥 Vérifier si l’utilisateur suit déjà cette enchère
+            if (user?.userId) {
+              const watching = await isWatchingAuction(auctionData.id);
+              setIsWatching(watching);
+            }
+          } catch (err) {
+            console.log("No auction yet for this item");
+            setAuction(null);
+          }
+        }
 
         // 🔥 Charger les reviews
         try {
@@ -122,7 +143,7 @@ setAuction({
           if (data.publisher?.userId) {
             setUserReviewsLoading(true);
 
-            const userReviewsData = await getReviewsByUser(
+            const userReviewsData = await getAllReviewsForUser(
               data.publisher.userId
             );
 
@@ -211,61 +232,61 @@ setAuction({
     }
   };
 
-const handleBid = async () => {
-  if (!bidAmount) {
-    showAlert("Erreur", "Entrez un montant");
-    return;
-  }
-
-  if (Platform.OS === "web") {
-    // 🔹 Sur le web, on utilise confirm()
-    if (!confirm(
-      "Engagement d'enchère\n\nPlacer une enchère constitue un engagement d'achat. Si vous gagnez et ne payez pas, votre compte pourra être suspendu."
-    )) {
-      return; // l'utilisateur a annulé
+  const handleBid = async () => {
+    if (!bidAmount) {
+      showAlert("Erreur", "Entrez un montant");
+      return;
     }
-  } else {
-    // 🔹 Sur mobile, on utilise Alert.alert avec deux boutons
-    let proceed = false;
-    await new Promise<void>((resolve) => {
-      Alert.alert(
-        "Engagement d'enchère",
-        "Placer une enchère constitue un engagement d'achat. Si vous gagnez et ne payez pas, votre compte pourra être suspendu.",
-        [
-          { text: "Annuler", style: "cancel", onPress: () => resolve() },
-          { 
-            text: "Confirmer", 
-            onPress: () => {
-              proceed = true;
-              resolve();
-            } 
-          },
-        ]
+
+    if (Platform.OS === "web") {
+      // 🔹 Sur le web, on utilise confirm()
+      if (!confirm(
+        "Engagement d'enchère\n\nPlacer une enchère constitue un engagement d'achat. Si vous gagnez et ne payez pas, votre compte pourra être suspendu."
+      )) {
+        return; // l'utilisateur a annulé
+      }
+    } else {
+      // 🔹 Sur mobile, on utilise Alert.alert avec deux boutons
+      let proceed = false;
+      await new Promise<void>((resolve) => {
+        Alert.alert(
+          "Engagement d'enchère",
+          "Placer une enchère constitue un engagement d'achat. Si vous gagnez et ne payez pas, votre compte pourra être suspendu.",
+          [
+            { text: "Annuler", style: "cancel", onPress: () => resolve() },
+            {
+              text: "Confirmer",
+              onPress: () => {
+                proceed = true;
+                resolve();
+              }
+            },
+          ]
+        );
+      });
+      if (!proceed) return; // utilisateur a annulé
+    }
+
+    // 🔹 Placer l'enchère après confirmation
+    try {
+      setBidLoading(true);
+
+      await placeBid(Number(auction.id), Number(bidAmount));
+      const updatedAuction = await getAuctionByItemId(Number(id));
+      setAuction(updatedAuction);
+
+      showAlert("Succès", "Enchère placée !");
+      setBidAmount("");
+    } catch (error: any) {
+      console.log("Bid error:", error?.response?.data);
+      showAlert(
+        "Erreur",
+        error?.response?.data?.message || "Impossible de placer l'enchère"
       );
-    });
-    if (!proceed) return; // utilisateur a annulé
-  }
-
-  // 🔹 Placer l'enchère après confirmation
-  try {
-    setBidLoading(true);
-
-    await placeBid(Number(auction.id), Number(bidAmount));
-    const updatedAuction = await getAuctionByItemId(Number(id));
-    setAuction(updatedAuction);
-
-    showAlert("Succès", "Enchère placée !");
-    setBidAmount("");
-  } catch (error: any) {
-    console.log("Bid error:", error?.response?.data);
-    showAlert(
-      "Erreur",
-      error?.response?.data?.message || "Impossible de placer l'enchère"
-    );
-  } finally {
-    setBidLoading(false);
-  }
-};
+    } finally {
+      setBidLoading(false);
+    }
+  };
 
   const handleRent = async () => {
     if (!startDate || !endDate) {
@@ -311,423 +332,355 @@ const handleBid = async () => {
   }
 
   return (
+    <SafeAreaView style={{ flex: 1 }}>
 
-    <ScrollView style={styles.container}>
-      <Text style={styles.title}>{item.title}</Text>
-
-
-     {item.type === "AUCTION" && auction && (
-  <View style={styles.auctionHeader}>
-
-    <Text style={styles.currentPrice}>
-      💰 Prix actuel
-    </Text>
-
-    <Text style={styles.priceValue}>
-      {auction.currentPrice ?? auction.startPrice} $
-    </Text>
-
-    {/* 🔥 AJOUTER ICI */}
-    {auction.reserveReached ? (
-      <Text style={styles.reserveReached}>
-        ✅ Prix de réserve atteint
-      </Text>
-    ) : (
-      <Text style={styles.reserveNotReached}>
-        ⛔ Prix de réserve non atteint
-      </Text>
-    )}
-
-    <Text>
-      Prix initial : {auction.startPrice} $
-    </Text>
-
-    <Text>
-      👀 {auction?.views ?? 0} personnes regardent
-    </Text>
-
-    <Text>
-      ⭐ {auction?.watchers ?? 0} suivent cette enchère
-    </Text>
-   <Text>
-  👥 {auction?.participantsCount ?? 0}{" "}
-  {(auction?.participantsCount ?? 0) > 1
-    ? "enchérisseurs"
-    : "enchérisseur"}{" "}
-  {(auction?.participantsCount ?? 0) >= 5 && "🔥 Compétition active"}
-</Text>
-
-    <Text style={styles.timer}>
-      ⏳ Temps restant : {timeLeft}
-    </Text>
-
-  </View>
-)}
-{item.type === "AUCTION" && auction && !isOwner && (
-  <Pressable
-    style={[
-      styles.rentButton,
-      isWatching && { backgroundColor: "#9ca3af" } // gris si déjà suivi
-    ]}
-    disabled={isWatching} // désactiver si déjà suivi
-    onPress={async () => {
-      try {
-        const updated = await watchAuction(auction.id); // API POST
-        setAuction(updated); // mettre à jour les watchers
-        setIsWatching(true); // bouton devient gris
-        showAlert("Succès", "⭐ Vous suivez maintenant cette enchère");
-      } catch (error) {
-        showAlert("Erreur", "Impossible de suivre l'enchère");
-      }
-    }}
-  >
-    <Text style={styles.buttonText}>
-      {isWatching ? "⭐ Enchère suivie" : "⭐ Suivre l'enchère"}
-    </Text>
-  </Pressable>
-)}
-      {item.imageUrls?.length > 0 ? (
-        item?.imageUrls?.map((url: string, index: number) => (
-          <Image
-            key={index}
-            source={{ uri: `${baseURL}${url}` }}
-            style={styles.image}
-            resizeMode="cover"
-          />
-        ))
-      ) : (
-        <Text>Aucune image</Text>
-      )}
-
-      {item.type === "RENTAL" && (
-        <Text style={styles.price}>{item.pricePerDay} $/jour</Text>
-      )}
-      <Text style={styles.description}>{item.description}</Text>
-
-      <Text style={styles.section}>📍 Localisation</Text>
-      <Text>{item.city}</Text>
-      <Text>{item.address}</Text>
-
-      <Text style={styles.section}>⭐ Note moyenne sur le produit</Text>
-      <Text>{item.averageRating ?? "Aucune note"}</Text>
-
-      <Text style={styles.section}>👤 Propriétaire</Text>
-
-      <Text style={styles.ownerName}>
-        {item.publisher?.fullName}
-      </Text>
-
-      <Link
-        href={{
-          pathname: "/user/[id]",
-          params: { id: item.publisher?.userId },
-        }}
-        style={styles.profileLink}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={insets.top + 20}
       >
-        Voir le profil du propriétaire →
-      </Link>
 
-      <Text>Pseudo : @{item.publisher?.username}</Text>
-      <Text>Ville : {item.publisher?.city}</Text>
-      <Text style={styles.section}>
-        ⭐ Avis sur ce propriétaire ({userReviews.length})
-      </Text>
-    
+        {/* 🔥 Permet de fermer clavier en cliquant ailleurs */}
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
 
-      {userReviewsLoading ? (
-        <ActivityIndicator size="small" color="#2563eb" />
-      ) : userReviews.length === 0 ? (
-        <Text>Aucun avis pour le moment</Text>
-      ) : (
-        userReviews.map((review) => (
-          <View key={review.id} style={{ marginTop: 10 }}>
-            <Text>⭐ {review.rating}</Text>
-            <Text>{review.comment}</Text>
-            <Text style={{ fontSize: 12, color: "gray" }}>
-              Par {review.reviewerUsername}
-            </Text>
-          </View>
-        ))
-      )}
-
-        {!isOwner && (
-<Pressable
-  style={styles.messageButton}
-  onPress={() => {
-
-    console.log("receiverId:", item.publisher?.userId)
-    console.log("itemId:", item.itemId)
-
-    router.push({
-      pathname: "/messages/chat",
-      params: {
-        receiverId: item.publisher?.userId,
-        itemId: item.itemId,
-      },
-    })
-
-  }}
->
-  <Text style={styles.buttonText}>
-    ✉️ Écrire au propriétaire
-  </Text>
-</Pressable>
-)}
-
-      {/*  <Text>
-        ⭐ {item.publisher?.averageRating ?? 0}
-        ({item.publisher?.reviewsCount ?? 0} avis)
-      </Text> */}
-
-      {item.type && (
-        <>
-          <Text style={styles.section}>
-            ⭐ Avis sur cet article ({reviewsCount})
-          </Text>
-
-          {reviewsLoading ? (
-            <ActivityIndicator size="small" color="#2563eb" />
-          ) : reviews.length === 0 ? (
-            <Text>Aucun avis pour le moment</Text>
-          ) : (
-            reviews.map((review) => (
-              <View key={review.id} style={{ marginTop: 10 }}>
-                <Text>⭐ {review.rating}</Text>
-                <Text>{review.comment}</Text>
-                <Text style={{ fontSize: 12, color: "gray" }}>
-                  Par {review.reviewerUsername}
-                </Text>
-              </View>
-            ))
-          )}
-        </>
-      )}
-
-      {item.publisher?.badge && (
-        <Text>🏅 Badge : {item.publisher.badge}</Text>
-
-      )}
-
-      {/* ======== BID (Non-owner & Premium uniquement) ======== */}
-      {item.type === "AUCTION" &&
-        !isOwner &&
-        item.active !== false &&
-        currentUser?.premium && (
-          <>
-            <Text style={styles.section}>💰 Placer une enchère</Text>
-
-            <Text>
-              Prix actuel : {
-                auction?.currentPrice != null
-                  ? auction.currentPrice
-                  : auction?.startPrice != null
-                    ? auction.startPrice
-                    : "Pas encore d'enchère"
-              } $
-            </Text>
-
-            <TextInput
-              placeholder="Votre offre"
-              value={bidAmount}
-              onChangeText={setBidAmount}
-              keyboardType="numeric"
-              style={styles.input}
-            />
-
-            <Pressable
-              onPress={handleBid}
-              style={styles.rentButton}
-              disabled={bidLoading}
-            >
-              <Text style={styles.buttonText}>
-                {bidLoading ? "Envoi..." : "Faire une offre"}
-              </Text>
-            </Pressable>
-          </>
-        )}
-
-      {item.type === "AUCTION" &&
-        !isOwner &&
-        !currentUser?.premium && (
-          <Text style={{ color: "orange", marginTop: 15 }}>
-            ⭐ Vous devez être Premium pour participer aux enchères.
-          </Text>
-        )}
-
-      
-      
-      {/* ======== LOCATION (Visible seulement si RENTAL et PAS owner) ======== */}
-      {item.type === "RENTAL" && !isOwner && (
-        <>
-          <Text style={styles.section}>📅 Louer cet item</Text>
-
-          {Platform.OS === "web" ? (
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              style={{
-                height: 40,
-                borderRadius: 8,
-                border: "1px solid #ccc",
-                padding: 8,
-                width: "100%",
-              }}
-            />
-          ) : (
-            <>
-              <Pressable
-                style={styles.input}
-                onPress={() => setShowStartPicker(true)}
-              >
-                <Text>{startDate || "Date début"}</Text>
-              </Pressable>
-
-              {showStartPicker && (
-                <DateTimePicker
-                  value={new Date()}
-                  mode="date"
-                  display="default"
-                  onChange={(event, selectedDate) => {
-                    setShowStartPicker(false);
-                    if (selectedDate) {
-                      const formatted = selectedDate.toISOString().split("T")[0];
-                      setStartDate(formatted);
-                    }
-                  }}
-                />
-              )}
-            </>
-          )}
-
-          {Platform.OS === "web" ? (
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              style={{
-                height: 40,
-                borderRadius: 8,
-                border: "1px solid #ccc",
-                padding: 8,
-                width: "100%",
-              }}
-            />
-          ) : (
-            <>
-              <Pressable
-                style={styles.input}
-                onPress={() => setShowEndPicker(true)}
-              >
-                <Text>{endDate || "Date fin"}</Text>
-              </Pressable>
-
-              {showEndPicker && (
-                <DateTimePicker
-                  value={endDate ? new Date(endDate) : new Date()}
-                  mode="date"
-                  display="default"
-                  minimumDate={new Date()}
-                  onChange={(event, selectedDate) => {
-                    setShowEndPicker(false);
-
-                    if (selectedDate) {
-                      const formatted = selectedDate
-                        .toISOString()
-                        .split("T")[0];
-
-                      setEndDate(formatted);
-                    }
-                  }}
-                />
-              )}
-            </>
-          )}
-
-          <Pressable
-            onPress={handleRent}
-            style={styles.rentButton}
-            disabled={rentLoading}
+          <ScrollView
+            style={styles.container}
+            contentContainerStyle={{
+              paddingBottom: insets.bottom + 120 // 🔥 important
+            }}
+            keyboardShouldPersistTaps="handled"
           >
-            <Text style={{ color: "#fff", textAlign: "center", fontWeight: "600" }}>
-              {rentLoading ? "Envoi..." : "Louer maintenant"}
-            </Text>
-          </Pressable>
-        </>
-      )}
+            <SafeAreaView style={{ flex: 1 }}>
 
-      {/* ======== ENCHÈRE (Visible seulement si AUCTION et owner) ======== */}
-      {item.type === "AUCTION" && isOwner && !auction && (
-        <>
+              <ScrollView
+                style={styles.container}
+                contentContainerStyle={{ paddingBottom: insets.bottom + 80 }}
+              >
+                <Text style={styles.title}>{item.title}</Text>
 
-          <Text style={styles.section}>🔥 Publier l'enchère</Text>
 
-          <TextInput
-            placeholder="Prix initial"
-            value={startPrice}
-            onChangeText={setStartPrice}
-            keyboardType="numeric"
-            style={styles.input}
-          />
+                {item.type === "AUCTION" && auction && (
+                  <View style={styles.auctionHeader}>
 
-          <TextInput
-  placeholder="Prix de réserve (secret)"
-  value={reservePrice}
-  onChangeText={setReservePrice}
-  keyboardType="numeric"
-  style={styles.input}
-/>
+                    <Text style={styles.currentPrice}>
+                      💰 Prix actuel
+                    </Text>
 
-          {Platform.OS === "web" ? (
-            <input
-              type="datetime-local"
-              value={endDateAuction}
-              onChange={(e) => setEndDateAuction(e.target.value)}
-              style={{
-                height: 40,
-                borderRadius: 8,
-                border: "1px solid #ccc",
-                padding: 8,
-                width: "100%",
-              }}
-            />
-          ) : (
-            <DateTimePicker
-              value={new Date()}
-              mode="datetime"
-              display="default"
-              onChange={(event, selectedDate) => {
-                if (selectedDate) {
-                  setEndDateAuction(selectedDate.toISOString());
-                }
-              }}
-            />
-          )}
+                    <Text style={styles.priceValue}>
+                      {auction.currentPrice ?? auction.startPrice} $
+                    </Text>
 
-      
-        </>
-      )}
+                    {/* 🔥 AJOUTER ICI */}
+                    {auction.reserveReached ? (
+                      <Text style={styles.reserveReached}>
+                        ✅ Prix de réserve atteint
+                      </Text>
+                    ) : (
+                      <Text style={styles.reserveNotReached}>
+                        ⛔ Prix de réserve non atteint
+                      </Text>
+                    )}
 
-      {item.type === "AUCTION" && isOwner && auction && (
-        <>
-          <Text style={styles.section}>📊 Votre enchère</Text>
+                    <Text>
+                      Prix initial : {auction.startPrice} $
+                    </Text>
 
-          <Text>
-            Prix actuel : {
-              auction?.currentPrice != null
-                ? auction.currentPrice
-                : auction?.startPrice != null
-                  ? auction.startPrice
-                  : "Pas encore d'enchère"
-            } $
-          </Text>
+                    <Text>
+                      👀 {auction?.views ?? 0} personnes regardent
+                    </Text>
 
-          <Text>Date de fin : {auction?.endDate}</Text>
-        </>
-      )}
+                    <Text>
+                      ⭐ {auction?.watchers ?? 0} suivent cette enchère
+                    </Text>
+                    <Text>
+                      👥 {auction?.participantsCount ?? 0}{" "}
+                      {(auction?.participantsCount ?? 0) > 1
+                        ? "enchérisseurs"
+                        : "enchérisseur"}{" "}
+                      {(auction?.participantsCount ?? 0) >= 5 && "🔥 Compétition active"}
+                    </Text>
 
-    </ScrollView>
+                    <Text style={styles.timer}>
+                      ⏳ Temps restant : {timeLeft}
+                    </Text>
 
+                  </View>
+                )}
+
+                {item.imageUrls?.length > 0 ? (
+                  <View style={{ marginBottom: 10 }}>
+                    {/* Carousel */}
+                    <HorizontalScroll
+                      horizontal
+                      pagingEnabled
+                      showsHorizontalScrollIndicator={false}
+                      onScroll={(e) => {
+                        const index = Math.round(e.nativeEvent.contentOffset.x / width);
+                        setActiveImageIndex(index);
+                      }}
+                      scrollEventThrottle={16}
+                      style={{ width: width - 30 }} // ← 30 = padding horizontal du container
+                    >
+                      {item.imageUrls.map((url: string, index: number) => (
+                        <View key={index} style={{ width: width - 30, aspectRatio: 4 / 3, backgroundColor: "#f0f0f0", borderRadius: 12 }}>
+                          <Image
+                            source={{ uri: `${baseURL}${url}` }}
+                            style={{ width: "100%", height: "100%", borderRadius: 12 }}
+                            resizeMode="contain"
+                          />
+                        </View>
+                      ))}
+                    </HorizontalScroll>
+
+                    {/* Dots */}
+                    {item.imageUrls.length > 1 && (
+                      <View style={{ flexDirection: "row", justifyContent: "center", marginTop: 8, gap: 6 }}>
+                        {item.imageUrls.map((_: any, index: number) => (
+                          <View
+                            key={index}
+                            style={{
+                              width: activeImageIndex === index ? 18 : 6,
+                              height: 6,
+                              borderRadius: 3,
+                              backgroundColor: activeImageIndex === index ? "#2563eb" : "#d1d5db",
+                            }}
+                          />
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                ) : <Text>Aucune image</Text>}
+
+                {item.type === "RENTAL" && (
+                  <Text style={styles.price}>{item.pricePerDay} $/jour</Text>
+                )}
+                <Text style={styles.description}>{item.description}</Text>
+
+                <Text style={styles.section}>📍 Localisation</Text>
+                <Text>{item.city}</Text>
+                <Text>{item.address}</Text>
+
+                {/* ── Propriétaire ── */}
+                <Text style={styles.section}>👤 Propriétaire</Text>
+                <Text style={styles.ownerName}>{item.publisher?.fullName}</Text>
+
+                {/* ← Note du propriétaire */}
+                <Text style={{ color: "#6b7280", fontSize: 13, marginTop: 2 }}>
+                  {item.publisher?.averageRating
+                    ? `${Number(item.publisher.averageRating).toFixed(1)} ⭐ · ${item.publisher.reviewsCount ?? 0} avis`
+                    : "Pas encore d'avis"}
+                </Text>
+                {item.publisher?.badge && (
+                  <Text style={{ fontSize: 13, marginTop: 2 }}>🏅 {item.publisher.badge}</Text>
+                )}
+
+                <Link
+                  href={{ pathname: "/user/[id]", params: { id: item.publisher?.userId } }}
+                  style={styles.profileLink}
+                >
+                  Voir le profil du propriétaire →
+                </Link>
+                <Text>@{item.publisher?.username}</Text>
+                <Text>{item.publisher?.city}</Text>
+
+                {/* ── Avis sur ce propriétaire ── */}
+                <Text style={styles.section}>
+                  ⭐ Avis sur ce propriétaire ({userReviews.length})
+                </Text>
+                {userReviewsLoading ? (
+                  <ActivityIndicator size="small" color="#2563eb" />
+                ) : userReviews.length === 0 ? (
+                  <Text>Aucun avis pour le moment</Text>
+                ) : (
+                  userReviews.map((review) => (
+                    <View key={review.id} style={{ marginTop: 10 }}>
+                      <Text>⭐ {review.rating}</Text>
+                      <Text>{review.comment}</Text>
+                      <Text style={{ fontSize: 12, color: "gray" }}>Par {review.reviewerUsername}</Text>
+                    </View>
+                  ))
+                )}
+
+                {/* ── Message propriétaire ── */}
+                {!isOwner && (
+                  <Pressable
+                    style={styles.messageButton}
+                    onPress={() => router.push({
+                      pathname: "/messages/chat",
+                      params: {
+                        receiverId: item.publisher?.userId,
+                        itemId: String(id),
+                        receiverUsername: item.publisher?.username,
+                      },
+                    })}
+                  >
+                    <Text style={styles.buttonText}>✉️ Écrire au propriétaire</Text>
+                  </Pressable>
+                )}
+
+                {/* ── Avis sur cet article ── */}
+                {item.type && (
+                  <>
+                    <Text style={styles.section}>⭐ Avis sur cet article ({reviewsCount})</Text>
+                    {reviewsLoading ? (
+                      <ActivityIndicator size="small" color="#2563eb" />
+                    ) : reviews.length === 0 ? (
+                      <Text>Aucun avis pour le moment</Text>
+                    ) : (
+                      reviews.map((review) => (
+                        <View key={review.id} style={{ marginTop: 10 }}>
+                          <Text>⭐ {review.rating}</Text>
+                          <Text>{review.comment}</Text>
+                          <Text style={{ fontSize: 12, color: "gray" }}>Par {review.reviewerUsername}</Text>
+                        </View>
+                      ))
+                    )}
+                  </>
+                )}
+
+                {item.publisher?.badge && (
+                  <Text>🏅 Badge : {item.publisher.badge}</Text>
+
+                )}
+
+                {/* ── Bannière enchère terminée / annulée ── */}
+                {isAuctionClosed && (
+                  <View style={{
+                    backgroundColor: "#fef2f2", borderRadius: 10, padding: 14,
+                    marginTop: 10, marginBottom: 10, borderWidth: 1, borderColor: "#fca5a5"
+                  }}>
+                    <Text style={{ color: "#dc2626", fontWeight: "600", textAlign: "center" }}>
+                      {item.status === "CANCELLED_AUCTION" ? "❌ Enchère annulée" : "⛔ Enchère terminée — Les offres sont closes"}
+                    </Text>
+                  </View>
+                )}
+
+                {/* ── Suivre enchère (seulement si active) ── */}
+                {item.type === "AUCTION" && auction && !isOwner && !isAuctionClosed && !isAuctionEnded && (
+                  <Pressable
+                    style={[styles.rentButton, isWatching && { backgroundColor: "#9ca3af" }]}
+                    disabled={isWatching}
+                    onPress={async () => {
+                      try {
+                        const updated = await watchAuction(auction.id);
+                        setAuction(updated);
+                        setIsWatching(true);
+                        showAlert("Succès", "⭐ Vous suivez maintenant cette enchère");
+                      } catch {
+                        showAlert("Erreur", "Impossible de suivre l'enchère");
+                      }
+                    }}
+                  >
+                    <Text style={styles.buttonText}>
+                      {isWatching ? "⭐ Enchère suivie" : "⭐ Suivre l'enchère"}
+                    </Text>
+                  </Pressable>
+                )}
+
+                {/* ── Bid (non-owner, premium, enchère active) ── */}
+                {item.type === "AUCTION" && !isOwner && !isAuctionEnded && !isAuctionClosed && currentUser?.premium && (
+                  <>
+                    <Text style={styles.section}>💰 Placer une enchère</Text>
+                    <Text>Prix actuel : {auction?.currentPrice ?? auction?.startPrice ?? "Pas encore d'enchère"} $</Text>
+                    <TextInput
+                      placeholder="Votre offre"
+                      value={bidAmount}
+                      onChangeText={setBidAmount}
+                      keyboardType="numeric"
+                      style={styles.input}
+                    />
+                    <Pressable onPress={handleBid} style={styles.rentButton} disabled={bidLoading}>
+                      <Text style={styles.buttonText}>{bidLoading ? "Envoi..." : "Faire une offre"}</Text>
+                    </Pressable>
+                  </>
+                )}
+
+                {/* Premium requis (seulement si enchère active) */}
+                {item.type === "AUCTION" && !isOwner && !currentUser?.premium && !isAuctionEnded && !isAuctionClosed && (
+                  <Text style={{ color: "orange", marginTop: 15 }}>
+                    ⭐ Vous devez être Premium pour participer aux enchères.
+                  </Text>
+                )}
+
+                {/* ── Location (item actif seulement) ── */}
+                {item.type === "RENTAL" && !isOwner && item.active !== false && (
+                  <>
+                    <Text style={styles.section}>📅 Louer cet item</Text>
+                    <Pressable style={styles.input} onPress={() => setShowStartPicker(true)}>
+                      <Text>{startDate || "Date début"}</Text>
+                    </Pressable>
+                    {showStartPicker && (
+                      <DateTimePicker
+                        value={new Date()} mode="date" display="default"
+                        onChange={(event, selectedDate) => {
+                          setShowStartPicker(false);
+                          if (selectedDate) setStartDate(selectedDate.toISOString().split("T")[0]);
+                        }}
+                      />
+                    )}
+                    <Pressable style={styles.input} onPress={() => setShowEndPicker(true)}>
+                      <Text>{endDate || "Date fin"}</Text>
+                    </Pressable>
+                    {showEndPicker && (
+                      <DateTimePicker
+                        value={endDate ? new Date(endDate) : new Date()}
+                        mode="date" display="default" minimumDate={new Date()}
+                        onChange={(event, selectedDate) => {
+                          setShowEndPicker(false);
+                          if (selectedDate) setEndDate(selectedDate.toISOString().split("T")[0]);
+                        }}
+                      />
+                    )}
+                    <Pressable onPress={handleRent} style={styles.rentButton} disabled={rentLoading}>
+                      <Text style={{ color: "#fff", textAlign: "center", fontWeight: "600" }}>
+                        {rentLoading ? "Envoi..." : "Louer maintenant"}
+                      </Text>
+                    </Pressable>
+                  </>
+                )}
+
+                {/* Item désactivé */}
+                {item.type === "RENTAL" && !isOwner && item.active === false && (
+                  <View style={{
+                    backgroundColor: "#f3f4f6", borderRadius: 10, padding: 14,
+                    marginTop: 15, borderWidth: 1, borderColor: "#d1d5db"
+                  }}>
+                    <Text style={{ color: "#6b7280", fontWeight: "600", textAlign: "center" }}>
+                      ⛔ Cet item n'est plus disponible à la location
+                    </Text>
+                  </View>
+                )}
+
+                {/* ── Owner : aller dans mes items pour publier ── */}
+                {item.type === "AUCTION" && isOwner && !auction && !isAuctionEnded && !isAuctionClosed && (
+                  <View style={{
+                    backgroundColor: "#fff7ed", borderRadius: 10, padding: 14,
+                    marginTop: 15, borderWidth: 1, borderColor: "#fed7aa"
+                  }}>
+                    <Text style={{ color: "#ea580c", fontWeight: "600", textAlign: "center" }}>
+                      ℹ️ Allez dans "Mes items" pour publier l'enchère
+                    </Text>
+                  </View>
+                )}
+
+                {/* ── Info enchère owner (active) ── */}
+                {item.type === "AUCTION" && isOwner && auction && !isAuctionEnded && !isAuctionClosed && (
+                  <>
+                    <Text style={styles.section}>📊 Votre enchère</Text>
+                    <Text>Prix actuel : {auction?.currentPrice ?? auction?.startPrice ?? "Pas encore d'enchère"} $</Text>
+                    <Text>Date de fin : {auction?.endDate}</Text>
+                  </>
+                )}
+
+              </ScrollView>
+            </SafeAreaView>
+          </ScrollView>
+
+        </TouchableWithoutFeedback>
+
+      </KeyboardAvoidingView>
+
+    </SafeAreaView>
   );
 }
 
@@ -750,9 +703,10 @@ const styles = StyleSheet.create({
   },
   image: {
     width: "100%",
-    height: 200,
-    borderRadius: 12,
+    aspectRatio: 4 / 3,      // ← hauteur dynamique selon ratio
+    borderRadius: 10,
     marginBottom: 10,
+    backgroundColor: "#f0f0f0", // ← fond si image non carrée
   },
   price: {
     fontSize: 18,
@@ -834,21 +788,21 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   messageButton: {
-  backgroundColor: "#10b981",
-  padding: 12,
-  borderRadius: 8,
-  marginTop: 12,
-},
+    backgroundColor: "#10b981",
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 12,
+  },
 
-reserveReached: {
-  marginTop: 6,
-  fontWeight: "600",
-  color: "#16a34a",
-},
+  reserveReached: {
+    marginTop: 6,
+    fontWeight: "600",
+    color: "#16a34a",
+  },
 
-reserveNotReached: {
-  marginTop: 6,
-  fontWeight: "600",
-  color: "#dc2626",
-},
+  reserveNotReached: {
+    marginTop: 6,
+    fontWeight: "600",
+    color: "#dc2626",
+  },
 });

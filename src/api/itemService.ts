@@ -1,12 +1,13 @@
 import { Platform } from "react-native";
 import { API } from "./api";
 import axios from "axios";
+import * as SecureStore from "expo-secure-store";
 
 
 const baseURL =
   Platform.OS === "android"
-    ? "http://10.0.2.2:8080"
-    : "http://localhost:8080";
+    ? "http://192.168.0.118:8080"
+    : "http://192.168.0.118:8080";
 
 // Liste des items actifs
 export const fetchItems = async () => {
@@ -36,13 +37,8 @@ export const createItem = async (formData: FormData) => {
   const response = await API.post(
     "/items/with-images",
     formData,
-    {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    }
+    // ← supprime complètement le headers ici
   );
-
   return response.data;
 };
 
@@ -68,7 +64,7 @@ export const searchItems = async (filters: any) => {
     params: cleanFilters,
   });
 
-  return response.data.content;
+  return response.data;
 };
 
 /*export const updateItem = async (id: number, data: any) => {
@@ -79,56 +75,43 @@ export const updateItem = async (id: number, data: any, images: any[]) => {
 
   formData.append("data", JSON.stringify(data));
 
-  console.log("🟡 DATA envoyée :", data);
-
-  // 🔥 DEBUG IMAGES
-  images.forEach((img, index) => {
-    console.log(`🖼️ Image ${index}:`, img.uri);
-  });
-
-  // 🔥 Upload nouvelles images
   for (let i = 0; i < images.length; i++) {
     const img = images[i];
 
-    if (
-      img.uri.startsWith("file") ||
-      img.uri.startsWith("blob")
-    ) {
-      console.log("🆕 Nouvelle image détectée :", img.uri);
-
-      const uri =
-        Platform.OS === "android"
-          ? img.uri
-          : img.uri.replace("file://", "");
-
-      const response = await fetch(uri);
-      const blob = await response.blob();
-
-      console.log("✅ Blob créé pour :", img.uri);
-
-      formData.append("images", blob, `image_${i}.jpg`);
-    } else {
-      console.log("📦 Image existante conservée :", img.uri);
+    if (img.uri.startsWith("file") || img.uri.startsWith("blob")) {
+      formData.append("images", {
+        uri: img.uri,
+        type: "image/jpeg",
+        name: `image_${i}.jpg`,
+      } as any);
     }
   }
 
   const existingUrls = images
-    .filter(
-      img =>
-        !img.uri.startsWith("file") &&
-        !img.uri.startsWith("blob")
-    )
+    .filter(img => !img.uri.startsWith("file") && !img.uri.startsWith("blob"))
     .map(img => img.uri.replace(baseURL, ""));
-
-  console.log("📁 existingUrls envoyées :", existingUrls);
 
   formData.append("existingImages", JSON.stringify(existingUrls));
 
-  console.log("🚀 Envoi requête update...");
+  // ── fetch natif comme createItem ──
+  const token = await SecureStore.getItemAsync("token");
 
-  return API.put(`/items/item/${id}/with-images`, formData, {
-    headers: { "Content-Type": "multipart/form-data" },
+  const response = await fetch(`http://192.168.0.118:8080/api/items/item/${id}/with-images`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
   });
+
+  console.log("UPDATE STATUS:", response.status);
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error?.message || "Erreur modification");
+  }
+
+  return response.json();
 };
 
 export const getNearbyItems = async (lat: number, lng: number, radiusKm = 10) => {
@@ -136,4 +119,13 @@ export const getNearbyItems = async (lat: number, lng: number, radiusKm = 10) =>
     params: { lat, lng, radiusKm }
   });
   return response.data;
+};
+
+export const sendMessageWithImage = async (formData: FormData) => {
+  const res = await API.post("/messages/send-with-image", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+  return res.data;
 };

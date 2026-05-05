@@ -272,7 +272,7 @@ const styles = StyleSheet.create({
 
     search: {
         backgroundColor: "#fff",
-        padding: 10,
+        padding: 15,
         borderRadius: 8,
         borderWidth: 1,
         borderColor: "#ddd",

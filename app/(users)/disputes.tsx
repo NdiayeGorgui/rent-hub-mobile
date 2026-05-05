@@ -2,8 +2,10 @@ import { createAuctionDispute, createDispute, getMyDisputes } from "@/src/api/di
 import { fetchMyRentals } from "@/src/api/rentalService";
 import { fetchItemDetails } from "@/src/api/itemService";
 import { getMyWonAuctions, getMyClosedAuctionsAsOwner } from "@/src/api/auctionService";
-
+import { getStatusLabel } from "@/src/utils/statusUtils";
 import { useEffect, useState } from "react";
+import { RefreshControl } from "react-native";
+
 import {
   View,
   Text,
@@ -23,6 +25,7 @@ export default function DisputesScreen() {
   const [itemsMap, setItemsMap] = useState<Record<number, any>>({});
   const [reason, setReason] = useState("");
   const [description, setDescription] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
 
   // Type de litige
   const [disputeType, setDisputeType] = useState<"rental" | "auction">("rental");
@@ -38,6 +41,12 @@ export default function DisputesScreen() {
     if (activeTab === "create") loadRentals();
   }, [activeTab]);
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadDisputes(); // ou loadData selon ton écran
+    setRefreshing(false);
+  };
+
   const loadDisputes = async () => {
     const data = await getMyDisputes();
     setDisputes(data);
@@ -50,6 +59,7 @@ export default function DisputesScreen() {
     );
     setItemsMap(Object.fromEntries(itemsResults));
   };
+
 
   const loadRentals = async () => {
     const rentalsData = await fetchMyRentals();
@@ -148,7 +158,7 @@ export default function DisputesScreen() {
     };
     return (
       <View style={[styles.badge, { backgroundColor: colors[status] ?? "#ccc" }]}>
-        <Text style={styles.badgeText}>{status}</Text>
+        <Text style={styles.badgeText}>{getStatusLabel(status)}</Text>
       </View>
     );
   };
@@ -179,26 +189,71 @@ export default function DisputesScreen() {
         <FlatList
           data={disputes}
           keyExtractor={(item) => item.id.toString()}
-          ListEmptyComponent={<Text style={styles.emptyText}>Aucun litige</Text>}
+
+          contentContainerStyle={{
+            flexGrow: 1,
+            paddingBottom: 20,
+          }}
+
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+            />
+          }
+
+          ListEmptyComponent={() => (
+            <View
+              style={{
+                flex: 1,
+                justifyContent: "center",
+                alignItems: "center",
+                marginTop: 40,
+              }}
+            >
+              <Text style={styles.emptyText}>
+
+                <Text style={{ fontSize: 40, marginBottom: 10 }}>⚖️</Text>
+
+
+              </Text>
+              <Text style={{ color: "#999", marginTop: 10 }}>
+                Aucun litige
+              </Text>
+            </View>
+          )}
+
           renderItem={({ item }) => (
             <View style={styles.card}>
+
               <View style={styles.cardHeader}>
                 <View>
                   <Text style={styles.cardTitle}>
                     {itemsMap[item.itemId]?.title ?? "Loading..."}
                   </Text>
+
                   <Text style={styles.subText}>
-                    {item.rentalId ? `📦 Location #${item.rentalId}` : `🔥 Enchère #${item.auctionId}`}
+                    {item.rentalId
+                      ? `📦 Location #${item.rentalId}`
+                      : `🔥 Enchère #${item.auctionId}`}
                   </Text>
                 </View>
+
                 {renderStatusBadge(item.status)}
               </View>
+
               <Text style={styles.reason}>{item.reason}</Text>
+
               {item.adminDecision && (
-                <Text style={{ marginTop: 6, fontStyle: "italic", color: "#444" }}>
+                <Text style={{
+                  marginTop: 6,
+                  fontStyle: "italic",
+                  color: "#444"
+                }}>
                   Décision admin : {item.adminDecision}
                 </Text>
               )}
+
             </View>
           )}
         />
