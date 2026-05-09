@@ -208,11 +208,7 @@ export default function AdminUsersScreen() {
               </Text>
 
               <View style={styles.metaRow}>
-                {item.auctionStrikes !== undefined && (
-                  <Text style={styles.strikes}>
-                    ⚠ Strikes : {item.auctionStrikes}/3
-                  </Text>
-                )}
+
                 <Text
                   style={[
                     styles.statusBadge,
@@ -244,6 +240,20 @@ export default function AdminUsersScreen() {
                 >
                   {item.subscription}
                 </Text>
+                {item.subscription === "PREMIUM" &&
+                  item.auctionStrikes !== undefined && (
+                    <View style={styles.strikeContainer}>
+                      <Text style={styles.strikes}>
+                        ⚠ Strikes : {item.auctionStrikes}/3
+                      </Text>
+
+                      {item.auctionRestricted && (
+                        <Text style={styles.restrictedText}>
+                          🚫 Enchères bloquées
+                        </Text>
+                      )}
+                    </View>
+                  )}
               </View>
             </View>
 
@@ -349,14 +359,32 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
 
-  strikes: {
-    marginTop: 6,
-    fontSize: 12,
-    color: "#dc2626",
-    fontWeight: "600",
-  },
   actions: {
     alignItems: "center",
     marginLeft: 10,
+  },
+
+
+  strikeContainer: {
+    marginTop: 6,
+  },
+
+  strikeContainerRestricted: {
+    alignItems: "flex-end",
+  },
+
+  strikes: {
+    fontSize: 12,
+    color: "#dc2626",
+    fontWeight: "700",
+
+  },
+
+  restrictedText: {
+    marginTop: 2,
+    fontSize: 11,
+    color: "#b91c1c",
+    fontWeight: "600",
+    textAlign: "right",
   },
 });

@@ -26,6 +26,7 @@ export default function DisputesScreen() {
   const [reason, setReason] = useState("");
   const [description, setDescription] = useState("");
   const [refreshing, setRefreshing] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   // Type de litige
   const [disputeType, setDisputeType] = useState<"rental" | "auction">("rental");
@@ -122,12 +123,28 @@ export default function DisputesScreen() {
       showAlert("Erreur", "Veuillez choisir une location et une raison");
       return;
     }
+
     try {
-      await createDispute({ rentalId: selectedRental.id, reason, description });
+      setSubmitting(true);
+
+      await createDispute({
+        rentalId: selectedRental.id,
+        reason,
+        description,
+      });
+
       showAlert("Succès", "Litige créé !");
-      setSelectedRental(null); setReason(""); setDescription("");
-      setActiveTab("list"); loadDisputes();
-    } catch { showAlert("Erreur", "Impossible de créer le litige"); }
+      setSelectedRental(null);
+      setReason("");
+      setDescription("");
+      setActiveTab("list");
+      loadDisputes();
+
+    } catch {
+      showAlert("Erreur", "Impossible de créer le litige");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleCreateAuctionDispute = async () => {
@@ -135,21 +152,32 @@ export default function DisputesScreen() {
       showAlert("Erreur", "La raison est obligatoire");
       return;
     }
+
     try {
+      setSubmitting(true);
+
       await createAuctionDispute({
         auctionId: selectedAuction.id,
-        // winner → signale le owner (ne livre pas)
-        // owner  → signale le winner (refuse de payer)
-        reportedUserId: auctionRole === "winner"
-          ? selectedAuction.ownerId
-          : selectedAuction.winnerId,
+        reportedUserId:
+          auctionRole === "winner"
+            ? selectedAuction.ownerId
+            : selectedAuction.winnerId,
         reason,
         description,
       });
+
       showAlert("Succès", "Litige créé !");
-      setSelectedAuction(null); setReason(""); setDescription("");
-      setActiveTab("list"); loadDisputes();
-    } catch { showAlert("Erreur", "Impossible de créer le litige"); }
+      setSelectedAuction(null);
+      setReason("");
+      setDescription("");
+      setActiveTab("list");
+      loadDisputes();
+
+    } catch {
+      showAlert("Erreur", "Impossible de créer le litige");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const renderStatusBadge = (status: string) => {
@@ -320,8 +348,16 @@ export default function DisputesScreen() {
                     placeholder="Description (optionnel)" value={description}
                     onChangeText={setDescription} style={[styles.input, { height: 90 }]} multiline
                   />
-                  <TouchableOpacity style={styles.primaryButton} onPress={handleCreate}>
-                    <Text style={styles.primaryButtonText}>Envoyer le litige</Text>
+                  <TouchableOpacity
+                    style={[styles.primaryButton, submitting && { opacity: 0.6 }]}
+                    onPress={handleCreate}
+                    disabled={submitting}
+                  >
+                    {submitting ? (
+                      <Text style={styles.primaryButtonText}>Envoi...</Text>
+                    ) : (
+                      <Text style={styles.primaryButtonText}>Envoyer le litige</Text>
+                    )}
                   </TouchableOpacity>
                   <TouchableOpacity onPress={() => setSelectedRental(null)}>
                     <Text style={styles.cancelText}>Changer de location</Text>
@@ -393,8 +429,16 @@ export default function DisputesScreen() {
                     placeholder="Description (optionnel)" value={description}
                     onChangeText={setDescription} style={[styles.input, { height: 90 }]} multiline
                   />
-                  <TouchableOpacity style={styles.primaryButton} onPress={handleCreateAuctionDispute}>
-                    <Text style={styles.primaryButtonText}>Envoyer le litige</Text>
+                  <TouchableOpacity
+                    style={[styles.primaryButton, submitting && { opacity: 0.6 }]}
+                    onPress={handleCreateAuctionDispute}
+                    disabled={submitting}
+                  >
+                    {submitting ? (
+                      <Text style={styles.primaryButtonText}>Envoi...</Text>
+                    ) : (
+                      <Text style={styles.primaryButtonText}>Envoyer le litige</Text>
+                    )}
                   </TouchableOpacity>
                   <TouchableOpacity onPress={() => setSelectedAuction(null)}>
                     <Text style={styles.cancelText}>Changer d'enchère</Text>

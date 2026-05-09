@@ -13,7 +13,7 @@ import { TextInput, Pressable, Alert } from "react-native";
 import { createRental, getRentalStatsByItem } from "../../src/api/rentalService";
 import { createAuction, getAuctionByItemId, isWatchingAuction, placeBid } from "../../src/api/auctionService";
 import { getCurrentUser } from "../../src/api/authService";
-import { getReviewsByItem, getReviewsByUser, getReviewsCountByItem,getAllReviewsForUser } from "@/src/api/reviewService";
+import { getReviewsByItem, getReviewsByUser, getReviewsCountByItem, getAllReviewsForUser } from "@/src/api/reviewService";
 import { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
 import { Animated } from "react-native";
 import * as ImagePicker from "expo-image-picker";
@@ -71,7 +71,10 @@ export default function ItemDetails() {
   const slideAnim = useState(new Animated.Value(0))[0];
   const statsAnim = useState(new Animated.Value(0))[0];
 
-  
+  const [showAllUserReviews, setShowAllUserReviews] = useState(false);
+  const [showAllItemReviews, setShowAllItemReviews] = useState(false);
+
+
 
   const categories = [
     { id: 1, name: "Électronique" },
@@ -86,14 +89,9 @@ export default function ItemDetails() {
     { id: 10, name: "Autres" },
   ];
 
-const isAuctionEnded =
-  item?.type === "AUCTION" &&
-  item?.active === false &&
-  item?.status !== "CANCELLED_AUCTION";
-
-const isAuctionClosed =
-  item?.type === "AUCTION" &&
-  (item?.status === "CANCELLED_AUCTION" || item?.active === false);
+  const isAuctionFinished =
+    item?.type === "AUCTION" &&
+    (item?.status === "CANCELLED_AUCTION" || item?.active === false);
 
   // ── DatePickers ──────────────────────────────────────
   const openStartDatePicker = () => {
@@ -451,275 +449,329 @@ const isAuctionClosed =
     </View>
   );
 
- return (
-  <KeyboardAvoidingView
-    style={{ flex: 1 }}
-    behavior={Platform.OS === "ios" ? "padding" : "height"}
-     keyboardVerticalOffset={insets.top + 20}
-  >
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={{ paddingBottom: +150 }} // important 👇
-      keyboardShouldPersistTaps="handled"
+  return (
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={insets.top + 20}
     >
-      {isAuctionClosed && (
-        <Text style={{ color: "red", fontWeight: "bold", marginBottom: 10 }}>
-          {item.status === "CANCELLED_AUCTION" ? "❌ Enchère annulée" : "⛔ Enchère terminée"}
-        </Text>
-      )}
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={{ paddingBottom: +150 }} // important 👇
+        keyboardShouldPersistTaps="handled"
+      >
+        {isAuctionFinished && (
+          <Text style={{ color: "red", fontWeight: "bold", marginBottom: 10 }}>
+            {item.status === "CANCELLED_AUCTION" ? "❌ Enchère annulée" : "⛔ Enchère terminée"}
+          </Text>
+        )}
 
-      {/* ── Management menu ── */}
-      {isOwner && (
-        <View style={styles.managementMenu}>
+        {/* ── Management menu ── */}
+        {isOwner && (
+          <View style={styles.managementMenu}>
 
-          {editMode && (
-            <Animated.View style={[styles.editContainer, { opacity: slideAnim }]}>
-              <Text style={styles.section}>✏️ Modifier l'item</Text>
-              <TextInput placeholder="Titre" value={editTitle} onChangeText={setEditTitle} style={styles.input} />
-              <TextInput placeholder="Description" value={editDescription} onChangeText={setEditDescription} style={styles.input} multiline />
+            {editMode && (
+              <Animated.View style={[styles.editContainer, { opacity: slideAnim }]}>
+                <Text style={styles.section}>✏️ Modifier l'item</Text>
+                <TextInput placeholder="Titre" value={editTitle} onChangeText={setEditTitle} style={styles.input} />
+                <TextInput placeholder="Description" value={editDescription} onChangeText={setEditDescription} style={styles.input} multiline />
 
-              <View style={{ marginTop: 10 }}>
-                <Text>Type</Text>
-                <Text style={{ fontWeight: "bold" }}>{item.type === "RENTAL" ? "📦 Location" : "🔥 Enchère"}</Text>
-              </View>
+                <View style={{ marginTop: 10 }}>
+                  <Text>Type</Text>
+                  <Text style={{ fontWeight: "bold" }}>{item.type === "RENTAL" ? "📦 Location" : "🔥 Enchère"}</Text>
+                </View>
 
-              <Text style={styles.section}>Catégorie</Text>
-              <View style={styles.pickerContainer}>
-                {categories.map((cat) => (
-                  <Pressable key={cat.id} onPress={() => setEditCategoryId(String(cat.id))}
-                    style={[styles.categoryButton, editCategoryId === String(cat.id) && styles.categoryButtonActive]}>
-                    <Text style={styles.categoryText}>{cat.name}</Text>
-                  </Pressable>
-                ))}
-              </View>
-
-              {item.type === "RENTAL" && (
-                <TextInput placeholder="Prix / jour" value={editPrice} onChangeText={setEditPrice} keyboardType="numeric" style={styles.input} />
-              )}
-              <TextInput placeholder="Ville" value={editCity} onChangeText={setEditCity} style={styles.input} />
-              <TextInput placeholder="Adresse" value={editAddress} onChangeText={setEditAddress} style={styles.input} />
-
-              <Text style={styles.section}>Images</Text>
-              <Pressable style={styles.imageButton} onPress={pickImages}>
-                <Text style={{ color: "#fff", fontWeight: "bold" }}>Choisir des images</Text>
-              </Pressable>
-
-              <View style={{ flexDirection: "row", flexWrap: "wrap", marginTop: 10 }}>
-                {editImages.map((img, index) => (
-                  <View key={index} style={{ position: "relative", marginRight: 8, marginBottom: 8 }}>
-                    <Image source={{ uri: img.uri }} style={{ width: 90, height: 90, borderRadius: 8 }} />
-                    <Pressable onPress={() => removeImage(index)}
-                      style={{ position: "absolute", top: -6, right: -6, backgroundColor: "rgba(0,0,0,0.7)", borderRadius: 12, width: 22, height: 22, justifyContent: "center", alignItems: "center" }}>
-                      <Text style={{ color: "#fff", fontSize: 14, fontWeight: "bold" }}>×</Text>
+                <Text style={styles.section}>Catégorie</Text>
+                <View style={styles.pickerContainer}>
+                  {categories.map((cat) => (
+                    <Pressable key={cat.id} onPress={() => setEditCategoryId(String(cat.id))}
+                      style={[styles.categoryButton, editCategoryId === String(cat.id) && styles.categoryButtonActive]}>
+                      <Text style={styles.categoryText}>{cat.name}</Text>
                     </Pressable>
-                  </View>
-                ))}
-              </View>
+                  ))}
+                </View>
 
-              <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
-                <Pressable style={styles.saveButton} onPress={handleUpdate}>
-                  <Text style={styles.buttonText}>💾 Enregistrer</Text>
+                {item.type === "RENTAL" && (
+                  <TextInput placeholder="Prix / jour" value={editPrice} onChangeText={setEditPrice} keyboardType="numeric" style={styles.input} />
+                )}
+                <TextInput placeholder="Ville" value={editCity} onChangeText={setEditCity} style={styles.input} />
+                <TextInput placeholder="Adresse" value={editAddress} onChangeText={setEditAddress} style={styles.input} />
+
+                <Text style={styles.section}>Images</Text>
+                <Pressable style={styles.imageButton} onPress={pickImages}>
+                  <Text style={{ color: "#fff", fontWeight: "bold" }}>Choisir des images</Text>
                 </Pressable>
-                <Pressable style={styles.cancelButton} onPress={toggleEdit}>
-                  <Text style={styles.buttonText}>Annuler</Text>
-                </Pressable>
-              </View>
-            </Animated.View>
-          )}
 
-          {!isAuctionClosed  && (
-            <Pressable
-              style={({ pressed }) => [
-                styles.manageCard,
-                pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
-              ]}
-              onPress={toggleEdit}
-            >
-              <Text style={styles.manageIcon}>✏️</Text>
-              <Text style={styles.manageLabel}>Modifier</Text>
-            </Pressable>
-          )}
+                <View style={{ flexDirection: "row", flexWrap: "wrap", marginTop: 10 }}>
+                  {editImages.map((img, index) => (
+                    <View key={index} style={{ position: "relative", marginRight: 8, marginBottom: 8 }}>
+                      <Image source={{ uri: img.uri }} style={{ width: 90, height: 90, borderRadius: 8 }} />
+                      <Pressable onPress={() => removeImage(index)}
+                        style={{ position: "absolute", top: -6, right: -6, backgroundColor: "rgba(0,0,0,0.7)", borderRadius: 12, width: 22, height: 22, justifyContent: "center", alignItems: "center" }}>
+                        <Text style={{ color: "#fff", fontSize: 14, fontWeight: "bold" }}>×</Text>
+                      </Pressable>
+                    </View>
+                  ))}
+                </View>
 
-          {item?.type === "AUCTION" ? (
-           auction &&
-auction.status === "OPEN" &&
-!isAuctionClosed && (
-              <Pressable style={[styles.manageCard, styles.deactivateCard]} onPress={handleCloseAuction}>
-                <Text style={styles.manageIcon}>❌</Text>
-                <Text style={styles.manageLabel}>Annuler l'enchère</Text>
-              </Pressable>
-            )
-          ) : (
-            !isAuctionClosed && (
+                <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
+                  <Pressable style={styles.saveButton} onPress={handleUpdate}>
+                    <Text style={styles.buttonText}>💾 Enregistrer</Text>
+                  </Pressable>
+                  <Pressable style={styles.cancelButton} onPress={toggleEdit}>
+                    <Text style={styles.buttonText}>Annuler</Text>
+                  </Pressable>
+                </View>
+              </Animated.View>
+            )}
+
+            {!isAuctionFinished && (
               <Pressable
-                style={[styles.manageCard, item.active ? styles.deactivateCard : styles.activateCard]}
-                onPress={handleDeactivate}
-                disabled={deactivateLoading}
+                style={({ pressed }) => [
+                  styles.manageCard,
+                  pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] },
+                ]}
+                onPress={toggleEdit}
               >
-                <Text style={styles.manageIcon}>{item.active ? "🚫" : "✅"}</Text>
-                <Text style={styles.manageLabel}>{item.active ? "Désactiver" : "Activer"}</Text>
+                <Text style={styles.manageIcon}>✏️</Text>
+                <Text style={styles.manageLabel}>Modifier</Text>
               </Pressable>
-            )
-          )}
+            )}
 
-          <Pressable style={styles.manageCard} onPress={toggleStats}>
-            <Text style={styles.manageIcon}>📊</Text>
-            <Text style={styles.manageLabel}>Statistiques</Text>
-          </Pressable>
+            {item?.type === "AUCTION" ? (
+              auction &&
+              auction.status === "OPEN" &&
+              !isAuctionFinished && (
+                <Pressable style={[styles.manageCard, styles.deactivateCard]} onPress={handleCloseAuction}>
+                  <Text style={styles.manageIcon}>❌</Text>
+                  <Text style={styles.manageLabel}>Annuler l'enchère</Text>
+                </Pressable>
+              )
+            ) : (
+              !isAuctionFinished && (
+                <Pressable
+                  style={[styles.manageCard, item.active ? styles.deactivateCard : styles.activateCard]}
+                  onPress={handleDeactivate}
+                  disabled={deactivateLoading}
+                >
+                  <Text style={styles.manageIcon}>{item.active ? "🚫" : "✅"}</Text>
+                  <Text style={styles.manageLabel}>{item.active ? "Désactiver" : "Activer"}</Text>
+                </Pressable>
+              )
+            )}
 
-          {statsVisible && (
-            <Animated.View style={[styles.statsContainer, {
-              maxHeight: statsAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 300] }),
-              opacity: statsAnim,
-            }]}>
-              <Text style={styles.section}>📊 Statistiques</Text>
-              {item.type === "AUCTION" ? (
-                auction ? (
+            <Pressable style={styles.manageCard} onPress={toggleStats}>
+              <Text style={styles.manageIcon}>📊</Text>
+              <Text style={styles.manageLabel}>Statistiques</Text>
+            </Pressable>
+
+            {statsVisible && (
+              <Animated.View style={[styles.statsContainer, {
+                maxHeight: statsAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 300] }),
+                opacity: statsAnim,
+              }]}>
+                <Text style={styles.section}>📊 Statistiques</Text>
+                {item.type === "AUCTION" ? (
+                  auction ? (
+                    <>
+                      <Text>👀 Vues : {auction.views ?? 0}</Text>
+                      <Text>⭐ Suivis : {auction.watchers ?? 0}</Text>
+                      <Text>👥 {auction.participantsCount ?? 0} enchérisseur(s)</Text>
+                      <Text>💰 Prix initial : {auction.startPrice} $</Text>
+                      <Text>📈 Prix actuel : {auction.currentPrice ?? auction.startPrice} $</Text>
+                      {auction.reserveReached
+                        ? <Text style={{ color: "#16a34a", fontWeight: "600" }}>✅ Prix de réserve atteint</Text>
+                        : <Text style={{ color: "#dc2626", fontWeight: "600" }}>⛔ Prix de réserve non atteint</Text>}
+                    </>
+                  ) : <Text>Aucune enchère active</Text>
+                ) : item.type === "RENTAL" && rentalStats ? (
                   <>
-                    <Text>👀 Vues : {auction.views ?? 0}</Text>
-                    <Text>⭐ Suivis : {auction.watchers ?? 0}</Text>
-                    <Text>👥 {auction.participantsCount ?? 0} enchérisseur(s)</Text>
-                    <Text>💰 Prix initial : {auction.startPrice} $</Text>
-                    <Text>📈 Prix actuel : {auction.currentPrice ?? auction.startPrice} $</Text>
-                    {auction.reserveReached
-                      ? <Text style={{ color: "#16a34a", fontWeight: "600" }}>✅ Prix de réserve atteint</Text>
-                      : <Text style={{ color: "#dc2626", fontWeight: "600" }}>⛔ Prix de réserve non atteint</Text>}
+                    <Text>📦 {rentalStats.rentalsCount} locations</Text>
+                    <Text>💰 {rentalStats.totalRevenue} $ générés</Text>
+                    <Text>📅 {rentalStats.totalDaysRented} jours loués</Text>
+                    {rentalStats.rentalsCount > 5 && <Text style={{ color: "#16a34a" }}>🔥 Très demandé</Text>}
                   </>
-                ) : <Text>Aucune enchère active</Text>
-              ) : item.type === "RENTAL" && rentalStats ? (
-                <>
-                  <Text>📦 {rentalStats.rentalsCount} locations</Text>
-                  <Text>💰 {rentalStats.totalRevenue} $ générés</Text>
-                  <Text>📅 {rentalStats.totalDaysRented} jours loués</Text>
-                  {rentalStats.rentalsCount > 5 && <Text style={{ color: "#16a34a" }}>🔥 Très demandé</Text>}
-                </>
-              ) : <Text>Aucune statistique disponible</Text>}
-            </Animated.View>
-          )}
-        </View>
-      )}
-
-      {/* ── Item info ── */}
-      <Text style={styles.title}>{item.title}</Text>
-
-      {item.type === "AUCTION" && auction && (
-        <View style={styles.auctionHeader}>
-          <Text style={styles.currentPrice}>💰 Prix actuel</Text>
-          <Text style={styles.priceValue}>{auction?.currentPrice ?? auction?.startPrice} $</Text>
-          <Text style={styles.timer}>⏳ Temps restant : {timeLeft}</Text>
-        </View>
-      )}
-
-      {item.imageUrls?.length > 0
-        ? item.imageUrls.map((url: string, index: number) => (
-          <Image key={index} source={{ uri: `${BASE_URL}${url}` }} style={styles.image} resizeMode="contain" />
-        ))
-        : <Text>Aucune image</Text>}
-
-      {item.type === "RENTAL" && <Text style={styles.price}>{item.pricePerDay} $/jour</Text>}
-      <Text style={styles.description}>{item.description}</Text>
-
-      <Text style={styles.section}>📍 Localisation</Text>
-      <Text>{item.city}</Text>
-      <Text>{item.address}</Text>
-
-      <Text style={styles.section}>⭐ Note moyenne</Text>
-      <Text>{item.averageRating ?? "Aucune note"}</Text>
-
-      <Text style={styles.section}>👤 Propriétaire</Text>
-      <Text style={styles.ownerName}>{item.publisher?.fullName}</Text>
-      <Link href={{ pathname: "/user/[id]", params: { id: item.publisher?.userId } }} style={styles.profileLink}>
-        Voir le profil →
-      </Link>
-      <Text>@{item.publisher?.username}</Text>
-      <Text>{item.publisher?.city}</Text>
-      {item.publisher?.badge && <Text>🏅 Badge : {item.publisher.badge}</Text>}
-
-      <Text style={styles.section}>⭐ Avis sur ce propriétaire ({userReviews.length})</Text>
-      {userReviewsLoading ? <ActivityIndicator size="small" color="#2563eb" /> : (
-        userReviews.length === 0 ? <Text>Aucun avis</Text> : userReviews.map(r => (
-          <View key={r.id} style={{ marginTop: 10 }}>
-            <Text>⭐ {r.rating}</Text>
-            <Text>{r.comment}</Text>
-            <Text style={{ fontSize: 12, color: "gray" }}>Par {r.reviewerUsername}</Text>
+                ) : <Text>Aucune statistique disponible</Text>}
+              </Animated.View>
+            )}
           </View>
-        ))
-      )}
+        )}
 
-      <Text style={styles.section}>⭐ Avis sur cet article ({reviewsCount})</Text>
-      {reviewsLoading ? <ActivityIndicator size="small" color="#2563eb" /> : (
-        reviews.length === 0 ? <Text>Aucun avis</Text> : reviews.map(r => (
-          <View key={r.id} style={{ marginTop: 10 }}>
-            <Text>⭐ {r.rating}</Text>
-            <Text>{r.comment}</Text>
-            <Text style={{ fontSize: 12, color: "gray" }}>Par {r.reviewerUsername}</Text>
+        {/* ── Item info ── */}
+        <Text style={styles.title}>{item.title}</Text>
+
+        {item.type === "AUCTION" && auction && (
+          <View style={styles.auctionHeader}>
+            <Text style={styles.currentPrice}>💰 Prix actuel</Text>
+            <Text style={styles.priceValue}>{auction?.currentPrice ?? auction?.startPrice} $</Text>
+            <Text style={styles.timer}>⏳ Temps restant : {timeLeft}</Text>
           </View>
-        ))
-      )}
+        )}
 
-      {/* ── Bid ── */}
-      {item.type === "AUCTION" && !isOwner && !isAuctionClosed && !isAuctionEnded && currentUser?.premium && (
-        <>
-          <Text style={styles.section}>💰 Placer une enchère</Text>
-          <Text>Prix actuel : {auction?.currentPrice ?? auction?.startPrice ?? "Pas encore d'enchère"} $</Text>
-          <TextInput placeholder="Votre offre" value={bidAmount} onChangeText={setBidAmount} keyboardType="numeric" style={styles.input} />
-          <Pressable onPress={handleBid} style={styles.rentButton} disabled={bidLoading}>
-            <Text style={styles.buttonText}>{bidLoading ? "Envoi..." : "Faire une offre"}</Text>
-          </Pressable>
-        </>
-      )}
+        {item.imageUrls?.length > 0
+          ? item.imageUrls.map((url: string, index: number) => (
+            <Image key={index} source={{ uri: `${BASE_URL}${url}` }} style={styles.image} resizeMode="contain" />
+          ))
+          : <Text>Aucune image</Text>}
 
-      {item.type === "AUCTION" && !isOwner && !currentUser?.premium && !isAuctionClosed && !isAuctionEnded && (
-        <Text style={{ color: "orange", marginTop: 15 }}>⭐ Vous devez être Premium pour participer aux enchères.</Text>
-      )}
+        {item.type === "RENTAL" && <Text style={styles.price}>{item.pricePerDay} $/jour</Text>}
+        <Text style={styles.description}>{item.description}</Text>
 
-      {/* ── Location ── */}
-      {item.type === "RENTAL" && !isOwner && (
-        <>
-          <Text style={styles.section}>📅 Louer cet item</Text>
-          <Pressable style={styles.input} onPress={openStartDatePicker}>
-            <Text>{startDate || "Date début"}</Text>
-          </Pressable>
-          <Pressable style={styles.input} onPress={openEndDatePicker}>
-            <Text>{endDate || "Date fin"}</Text>
-          </Pressable>
-          <Pressable onPress={handleRent} style={styles.rentButton} disabled={rentLoading}>
-            <Text style={{ color: "#fff", textAlign: "center", fontWeight: "600" }}>
-              {rentLoading ? "Envoi..." : "Louer maintenant"}
-            </Text>
-          </Pressable>
-        </>
-      )}
+        <Text style={styles.section}>📍 Localisation</Text>
+        <Text>{item.city}</Text>
+        <Text>{item.address}</Text>
 
-      {/* ── Publier enchère ── */}
-      {item.type === "AUCTION" && isOwner && !auction && !isAuctionClosed && !isAuctionEnded && (
-        <>
-          <Text style={styles.section}>🔥 Publier l'enchère</Text>
-          <TextInput placeholder="Prix initial" value={startPrice} onChangeText={setStartPrice} keyboardType="numeric" style={styles.input} />
-          <TextInput placeholder="Prix de réserve" value={reservePrice} onChangeText={setReservePrice} keyboardType="numeric" style={styles.input} />
-          <Pressable style={styles.input} onPress={openAuctionDatePicker}>
-            <Text>{endDateAuction ? new Date(endDateAuction).toLocaleString() : "Date fin enchère"}</Text>
-          </Pressable>
-          <Pressable onPress={handleCreateAuction} style={styles.rentButton} disabled={auctionLoading}>
-            <Text style={{ color: "#fff", textAlign: "center", fontWeight: "600" }}>
-              {auctionLoading ? "Publication..." : "Publier l'enchère"}
-            </Text>
-          </Pressable>
-        </>
-      )}
+        <Text style={styles.section}>⭐ Note moyenne</Text>
+        <Text>{item.averageRating ?? "Aucune note"}</Text>
 
-      {/* ── Info enchère owner ── */}
-      {item.type === "AUCTION" && isOwner && auction && auction.status === "OPEN" && !isAuctionClosed && !isAuctionEnded && (
-        <>
-          <Text style={styles.section}>📊 Votre enchère</Text>
-          <Text>Prix actuel : {auction?.currentPrice ?? auction?.startPrice ?? "Pas encore d'enchère"} $</Text>
-          <Text>Date de fin : {auction?.endDate}</Text>
-        </>
-      )}
+        <Text style={styles.section}>👤 Propriétaire</Text>
+        <Text style={styles.ownerName}>{item.publisher?.fullName}</Text>
+        <Link href={{ pathname: "/user/[id]", params: { id: item.publisher?.userId } }} style={styles.profileLink}>
+          Voir le profil →
+        </Link>
+        <Text>@{item.publisher?.username}</Text>
+        <Text>{item.publisher?.city}</Text>
+        {item.publisher?.badge && <Text>🏅 Badge : {item.publisher.badge}</Text>}
+
+        <Text style={styles.section}>⭐ Avis sur ce propriétaire ({userReviews.length})</Text>
+        {userReviewsLoading ? (
+          <ActivityIndicator size="small" color="#2563eb" />
+        ) : userReviews.length === 0 ? (
+          <Text>Aucun avis</Text>
+        ) : (
+          <>
+            {(showAllUserReviews
+              ? userReviews
+              : userReviews.slice(0, 3)
+            ).map((r) => (
+              <View key={r.id} style={{ marginTop: 10 }}>
+                <Text>⭐ {r.rating}</Text>
+                <Text>{r.comment}</Text>
+                <Text style={{ fontSize: 12, color: "gray" }}>
+                  Par {r.reviewerUsername}
+                </Text>
+              </View>
+            ))}
+
+            {userReviews.length > 3 && (
+              <Pressable
+                onPress={() => setShowAllUserReviews(!showAllUserReviews)}
+              >
+                <Text
+                  style={{
+                    color: "#2563eb",
+                    fontWeight: "600",
+                    marginTop: 10,
+                  }}
+                >
+                  {showAllUserReviews ? "Voir moins" : "Voir plus"}
+                </Text>
+              </Pressable>
+            )}
+          </>
+        )}
+
+        <Text style={styles.section}>⭐ Avis sur cet article ({reviewsCount})</Text>
+        {reviewsLoading ? (
+          <ActivityIndicator size="small" color="#2563eb" />
+        ) : reviews.length === 0 ? (
+          <Text>Aucun avis</Text>
+        ) : (
+          <>
+            {(showAllItemReviews
+              ? reviews
+              : reviews.slice(0, 3)
+            ).map((r) => (
+              <View key={r.id} style={{ marginTop: 10 }}>
+                <Text>⭐ {r.rating}</Text>
+                <Text>{r.comment}</Text>
+                <Text style={{ fontSize: 12, color: "gray" }}>
+                  Par {r.reviewerUsername}
+                </Text>
+              </View>
+            ))}
+
+            {reviews.length > 3 && (
+              <Pressable
+                onPress={() => setShowAllItemReviews(!showAllItemReviews)}
+              >
+                <Text
+                  style={{
+                    color: "#2563eb",
+                    fontWeight: "600",
+                    marginTop: 10,
+                  }}
+                >
+                  {showAllItemReviews ? "Voir moins" : "Voir plus"}
+                </Text>
+              </Pressable>
+            )}
+          </>
+        )}
+
+        {/* ── Bid ── */}
+        {item.type === "AUCTION" && !isOwner && !isAuctionFinished && currentUser?.premium && (
+          <>
+            <Text style={styles.section}>💰 Placer une enchère</Text>
+            <Text>Prix actuel : {auction?.currentPrice ?? auction?.startPrice ?? "Pas encore d'enchère"} $</Text>
+            <TextInput placeholder="Votre offre" value={bidAmount} onChangeText={setBidAmount} keyboardType="numeric" style={styles.input} />
+            <Pressable onPress={handleBid} style={styles.rentButton} disabled={bidLoading}>
+              <Text style={styles.buttonText}>{bidLoading ? "Envoi..." : "Faire une offre"}</Text>
+            </Pressable>
+          </>
+        )}
+
+        {item.type === "AUCTION" && !isOwner && !currentUser?.premium && !isAuctionFinished && (
+          <Text style={{ color: "orange", marginTop: 15 }}>⭐ Vous devez être Premium pour participer aux enchères.</Text>
+        )}
+
+        {/* ── Location ── */}
+        {item.type === "RENTAL" && !isOwner && (
+          <>
+            <Text style={styles.section}>📅 Louer cet item</Text>
+            <Pressable style={styles.input} onPress={openStartDatePicker}>
+              <Text>{startDate || "Date début"}</Text>
+            </Pressable>
+            <Pressable style={styles.input} onPress={openEndDatePicker}>
+              <Text>{endDate || "Date fin"}</Text>
+            </Pressable>
+            <Pressable onPress={handleRent} style={styles.rentButton} disabled={rentLoading}>
+              <Text style={{ color: "#fff", textAlign: "center", fontWeight: "600" }}>
+                {rentLoading ? "Envoi..." : "Louer maintenant"}
+              </Text>
+            </Pressable>
+          </>
+        )}
+
+        {/* ── Publier enchère ── */}
+        {item.type === "AUCTION" && isOwner && !auction && !isAuctionFinished && (
+          <>
+            <Text style={styles.section}>🔥 Publier l'enchère</Text>
+            <TextInput placeholder="Prix initial" value={startPrice} onChangeText={setStartPrice} keyboardType="numeric" style={styles.input} />
+            <TextInput placeholder="Prix de réserve" value={reservePrice} onChangeText={setReservePrice} keyboardType="numeric" style={styles.input} />
+            <Pressable style={styles.input} onPress={openAuctionDatePicker}>
+              <Text>{endDateAuction ? new Date(endDateAuction).toLocaleString() : "Date fin enchère"}</Text>
+            </Pressable>
+            <Pressable onPress={handleCreateAuction} style={styles.rentButton} disabled={auctionLoading}>
+              <Text style={{ color: "#fff", textAlign: "center", fontWeight: "600" }}>
+                {auctionLoading ? "Publication..." : "Publier l'enchère"}
+              </Text>
+            </Pressable>
+          </>
+        )}
+
+        {/* ── Info enchère owner ── */}
+        {item.type === "AUCTION" && isOwner && auction && auction.status === "OPEN" && !isAuctionFinished && (
+          <>
+            <Text style={styles.section}>📊 Votre enchère</Text>
+            <Text>Prix actuel : {auction?.currentPrice ?? auction?.startPrice ?? "Pas encore d'enchère"} $</Text>
+            <Text>Date de fin : {auction?.endDate}</Text>
+          </>
+        )}
 
       </ScrollView>
-  </KeyboardAvoidingView>
-);
+    </KeyboardAvoidingView>
+  );
 }
 
 const styles = StyleSheet.create({

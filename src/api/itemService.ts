@@ -121,11 +121,3 @@ export const getNearbyItems = async (lat: number, lng: number, radiusKm = 10) =>
   return response.data;
 };
 
-export const sendMessageWithImage = async (formData: FormData) => {
-  const res = await API.post("/messages/send-with-image", formData, {
-    headers: {
-      "Content-Type": "multipart/form-data",
-    },
-  });
-  return res.data;
-};

@@ -33,13 +33,13 @@ export default function Register() {
   });
 
   const fields = [
-  { key: "username", placeholder: "Nom d'utilisateur" },
-  { key: "email", placeholder: "Email" },
-  { key: "password", placeholder: "Mot de passe" },
-  { key: "fullName", placeholder: "Nom complet" },
-  { key: "phone", placeholder: "Téléphone" },
-  { key: "city", placeholder: "Ville" },
-];
+    { key: "username", placeholder: "Nom d'utilisateur" },
+    { key: "email", placeholder: "Email" },
+    { key: "password", placeholder: "Mot de passe" },
+    { key: "fullName", placeholder: "Nom complet" },
+    { key: "phone", placeholder: "Téléphone" },
+    { key: "city", placeholder: "Ville" },
+  ];
 
   const showAlert = (title: string, message: string) => {
     Alert.alert(title, message);
@@ -83,55 +83,55 @@ export default function Register() {
   };
 
   return (
-  <SafeAreaView style={{ flex: 1 }}>
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={20}
-    >
-      <ScrollView
-        contentContainerStyle={{
-          flexGrow: 1,
-          justifyContent: "center",
-          padding: 25,
-          paddingBottom: insets.bottom + 20,
-        }}
-        keyboardShouldPersistTaps="handled"
+    <SafeAreaView style={{ flex: 1 }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={20}
       >
-        <Text style={styles.logo}>Créer un compte</Text>
-
-       {fields.map((field) => (
-  <TextInput
-    key={field.key}
-    placeholder={field.placeholder}
-    secureTextEntry={field.key === "password"}
-    style={styles.input}
-    value={(form as any)[field.key]}
-    onChangeText={(text) => handleChange(field.key, text)}
-  />
-))}
-
-        <TouchableOpacity
-          style={styles.button}
-          onPress={handleRegister}
-          disabled={loading}
+        <ScrollView
+          contentContainerStyle={{
+            flexGrow: 1,
+            justifyContent: "center",
+            padding: 25,
+            paddingBottom: insets.bottom + 20,
+          }}
+          keyboardShouldPersistTaps="handled"
         >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>S'inscrire</Text>
-          )}
-        </TouchableOpacity>
+          <Text style={styles.logo}>Créer un compte</Text>
 
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.link}>
-            Déjà un compte ? Se connecter
-          </Text>
-        </TouchableOpacity>
-      </ScrollView>
-    </KeyboardAvoidingView>
-  </SafeAreaView>
-);
+          {fields.map((field) => (
+            <TextInput
+              key={field.key}
+              placeholder={field.placeholder}
+              secureTextEntry={field.key === "password"}
+              style={styles.input}
+              value={(form as any)[field.key]}
+              onChangeText={(text) => handleChange(field.key, text)}
+            />
+          ))}
+
+          <TouchableOpacity
+            style={styles.button}
+            onPress={handleRegister}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.buttonText}>S'inscrire</Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={() => router.back()}>
+            <Text style={styles.link}>
+              Déjà un compte ? Se connecter
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
 }
 
 const styles = StyleSheet.create({

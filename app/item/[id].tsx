@@ -17,7 +17,7 @@ import { TextInput, Pressable, Alert } from "react-native";
 import { createRental } from "../../src/api/rentalService";
 import { createAuction, getAuctionByItemId, isWatchingAuction, placeBid, watchAuction } from "../../src/api/auctionService";
 import { getCurrentUser } from "../../src/api/authService";
-import { getReviewsByItem, getReviewsByUser, getReviewsCountByItem,getAllReviewsForUser } from "@/src/api/reviewService";
+import { getReviewsByItem, getReviewsByUser, getReviewsCountByItem, getAllReviewsForUser } from "@/src/api/reviewService";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { ScrollView as HorizontalScroll, Dimensions } from "react-native";
@@ -60,15 +60,11 @@ export default function ItemDetails() {
   const { width } = Dimensions.get("window");
   const [activeImageIndex, setActiveImageIndex] = useState(0);
 
-  const isAuctionEnded =
-    item?.type === "AUCTION" &&
-    auction !== null &&
-    item?.active === false &&
-    item?.status !== "CANCELLED_AUCTION";
+  const [showAllUserReviews, setShowAllUserReviews] = useState(false);
+  const [showAllItemReviews, setShowAllItemReviews] = useState(false);
 
-  const isAuctionClosed =
+  const isAuctionFinished =
     item?.type === "AUCTION" &&
-    auction !== null &&
     (item?.status === "CANCELLED_AUCTION" || item?.active === false);
 
 
@@ -461,45 +457,139 @@ export default function ItemDetails() {
                 <Text>{item.address}</Text>
 
                 {/* ── Propriétaire ── */}
-                <Text style={styles.section}>👤 Propriétaire</Text>
-                <Text style={styles.ownerName}>{item.publisher?.fullName}</Text>
+                <View style={styles.card}>
+                  <Text style={styles.sectionTitle}>👤 Propriétaire</Text>
 
-                {/* ← Note du propriétaire */}
-                <Text style={{ color: "#6b7280", fontSize: 13, marginTop: 2 }}>
-                  {item.publisher?.averageRating
-                    ? `${Number(item.publisher.averageRating).toFixed(1)} ⭐ · ${item.publisher.reviewsCount ?? 0} avis`
-                    : "Pas encore d'avis"}
-                </Text>
-                {item.publisher?.badge && (
-                  <Text style={{ fontSize: 13, marginTop: 2 }}>🏅 {item.publisher.badge}</Text>
-                )}
+                  <Text style={styles.ownerName}>
+                    {item.publisher?.fullName}
+                  </Text>
 
-                <Link
-                  href={{ pathname: "/user/[id]", params: { id: item.publisher?.userId } }}
-                  style={styles.profileLink}
-                >
-                  Voir le profil du propriétaire →
-                </Link>
-                <Text>@{item.publisher?.username}</Text>
-                <Text>{item.publisher?.city}</Text>
+                  <Text style={styles.username}>
+                    @{item.publisher?.username}
+                  </Text>
 
-                {/* ── Avis sur ce propriétaire ── */}
-                <Text style={styles.section}>
-                  ⭐ Avis sur ce propriétaire ({userReviews.length})
-                </Text>
-                {userReviewsLoading ? (
-                  <ActivityIndicator size="small" color="#2563eb" />
-                ) : userReviews.length === 0 ? (
-                  <Text>Aucun avis pour le moment</Text>
-                ) : (
-                  userReviews.map((review) => (
-                    <View key={review.id} style={{ marginTop: 10 }}>
-                      <Text>⭐ {review.rating}</Text>
-                      <Text>{review.comment}</Text>
-                      <Text style={{ fontSize: 12, color: "gray" }}>Par {review.reviewerUsername}</Text>
-                    </View>
-                  ))
-                )}
+                  <Text style={styles.city}>
+                    {item.publisher?.city}
+                  </Text>
+
+                  <Text style={styles.rating}>
+                    {item.publisher?.averageRating
+                      ? `${Number(item.publisher.averageRating).toFixed(1)} ⭐ (${item.publisher.reviewsCount ?? 0} avis)`
+                      : "Aucune note"}
+                  </Text>
+
+                  {item.publisher?.badge && (
+                    <Text style={styles.badge}>
+                      🏅 {item.publisher.badge}
+                    </Text>
+                  )}
+
+                  <Link
+                    href={{
+                      pathname: "/user/[id]",
+                      params: { id: item.publisher?.userId }
+                    }}
+                    style={styles.profileLink}
+                  >
+                    Voir le profil →
+                  </Link>
+
+                  {/* Avis propriétaire */}
+                  <View style={styles.reviewSection}>
+                    <Text style={styles.reviewTitle}>
+                      ⭐ Avis sur ce propriétaire ({userReviews.length})
+                    </Text>
+
+                    {userReviews.length === 0 ? (
+                      <Text style={styles.emptyText}>
+                        Aucun avis pour le moment
+                      </Text>
+                    ) : (
+                      <>
+                        {(showAllUserReviews
+                          ? userReviews
+                          : userReviews.slice(0, 3)
+                        ).map((review) => (
+                          <View key={review.id} style={styles.reviewItem}>
+                            <Text>⭐ {review.rating}</Text>
+
+                            <Text style={styles.reviewComment}>
+                              {review.comment}
+                            </Text>
+
+                            <Text style={styles.reviewUser}>
+                              Par {review.reviewerUsername}
+                            </Text>
+                          </View>
+                        ))}
+
+                        {/* 🔥 BOUTON VOIR PLUS */}
+                        {userReviews.length > 3 && (
+                          <Pressable
+                            onPress={() =>
+                              setShowAllUserReviews(!showAllUserReviews)
+                            }
+                            style={styles.showMoreButton}
+                          >
+                            <Text style={styles.showMoreText}>
+                              {showAllUserReviews
+                                ? "Voir moins"
+                                : "Voir plus"}
+                            </Text>
+                          </Pressable>
+                        )}
+                      </>
+                    )}
+                  </View>
+
+                  {/* Avis item */}
+                  <View style={styles.reviewSection}>
+                    <Text style={styles.reviewTitle}>
+                      ⭐ Avis sur cet article ({reviewsCount})
+                    </Text>
+
+                    {reviews.length === 0 ? (
+                      <Text style={styles.emptyText}>
+                        Aucun avis pour le moment
+                      </Text>
+                    ) : (
+                      <>
+                        {(showAllItemReviews
+                          ? reviews
+                          : reviews.slice(0, 3)
+                        ).map((review) => (
+                          <View key={review.id} style={styles.reviewItem}>
+                            <Text>⭐ {review.rating}</Text>
+
+                            <Text style={styles.reviewComment}>
+                              {review.comment}
+                            </Text>
+
+                            <Text style={styles.reviewUser}>
+                              Par {review.reviewerUsername}
+                            </Text>
+                          </View>
+                        ))}
+
+                        {/* 🔥 Voir plus */}
+                        {reviews.length > 3 && (
+                          <Pressable
+                            onPress={() =>
+                              setShowAllItemReviews(!showAllItemReviews)
+                            }
+                            style={styles.showMoreButton}
+                          >
+                            <Text style={styles.showMoreText}>
+                              {showAllItemReviews
+                                ? "Voir moins"
+                                : "Voir plus"}
+                            </Text>
+                          </Pressable>
+                        )}
+                      </>
+                    )}
+                  </View>
+                </View>
 
                 {/* ── Message propriétaire ── */}
                 {!isOwner && (
@@ -518,25 +608,7 @@ export default function ItemDetails() {
                   </Pressable>
                 )}
 
-                {/* ── Avis sur cet article ── */}
-                {item.type && (
-                  <>
-                    <Text style={styles.section}>⭐ Avis sur cet article ({reviewsCount})</Text>
-                    {reviewsLoading ? (
-                      <ActivityIndicator size="small" color="#2563eb" />
-                    ) : reviews.length === 0 ? (
-                      <Text>Aucun avis pour le moment</Text>
-                    ) : (
-                      reviews.map((review) => (
-                        <View key={review.id} style={{ marginTop: 10 }}>
-                          <Text>⭐ {review.rating}</Text>
-                          <Text>{review.comment}</Text>
-                          <Text style={{ fontSize: 12, color: "gray" }}>Par {review.reviewerUsername}</Text>
-                        </View>
-                      ))
-                    )}
-                  </>
-                )}
+
 
                 {item.publisher?.badge && (
                   <Text>🏅 Badge : {item.publisher.badge}</Text>
@@ -544,7 +616,7 @@ export default function ItemDetails() {
                 )}
 
                 {/* ── Bannière enchère terminée / annulée ── */}
-                {isAuctionClosed && (
+                {isAuctionFinished && (
                   <View style={{
                     backgroundColor: "#fef2f2", borderRadius: 10, padding: 14,
                     marginTop: 10, marginBottom: 10, borderWidth: 1, borderColor: "#fca5a5"
@@ -556,7 +628,7 @@ export default function ItemDetails() {
                 )}
 
                 {/* ── Suivre enchère (seulement si active) ── */}
-                {item.type === "AUCTION" && auction && !isOwner && !isAuctionClosed && !isAuctionEnded && (
+                {item.type === "AUCTION" && auction && !isOwner && !isAuctionFinished && (
                   <Pressable
                     style={[styles.rentButton, isWatching && { backgroundColor: "#9ca3af" }]}
                     disabled={isWatching}
@@ -578,7 +650,7 @@ export default function ItemDetails() {
                 )}
 
                 {/* ── Bid (non-owner, premium, enchère active) ── */}
-                {item.type === "AUCTION" && !isOwner && !isAuctionEnded && !isAuctionClosed && currentUser?.premium && (
+                {item.type === "AUCTION" && !isOwner && !isAuctionFinished && currentUser?.premium && (
                   <>
                     <Text style={styles.section}>💰 Placer une enchère</Text>
                     <Text>Prix actuel : {auction?.currentPrice ?? auction?.startPrice ?? "Pas encore d'enchère"} $</Text>
@@ -589,14 +661,33 @@ export default function ItemDetails() {
                       keyboardType="numeric"
                       style={styles.input}
                     />
-                    <Pressable onPress={handleBid} style={styles.rentButton} disabled={bidLoading}>
+                    <Pressable
+                      onPress={handleBid}
+                      disabled={
+                        bidLoading ||
+                        !bidAmount ||
+                        Number(bidAmount) <=
+                        (auction?.currentPrice ?? auction?.startPrice)
+                      }
+                      style={[
+                        styles.rentButton,
+                        (
+                          bidLoading ||
+                          !bidAmount ||
+                          Number(bidAmount) <=
+                          (auction?.currentPrice ?? auction?.startPrice)
+                        ) && {
+                          opacity: 0.5,
+                        },
+                      ]}
+                    >
                       <Text style={styles.buttonText}>{bidLoading ? "Envoi..." : "Faire une offre"}</Text>
                     </Pressable>
                   </>
                 )}
 
                 {/* Premium requis (seulement si enchère active) */}
-                {item.type === "AUCTION" && !isOwner && !currentUser?.premium && !isAuctionEnded && !isAuctionClosed && (
+                {item.type === "AUCTION" && !isOwner && !currentUser?.premium && !isAuctionFinished && (
                   <Text style={{ color: "orange", marginTop: 15 }}>
                     ⭐ Vous devez être Premium pour participer aux enchères.
                   </Text>
@@ -652,7 +743,7 @@ export default function ItemDetails() {
                 )}
 
                 {/* ── Owner : aller dans mes items pour publier ── */}
-                {item.type === "AUCTION" && isOwner && !auction && !isAuctionEnded && !isAuctionClosed && (
+                {item.type === "AUCTION" && isOwner && !auction && !isAuctionFinished && (
                   <View style={{
                     backgroundColor: "#fff7ed", borderRadius: 10, padding: 14,
                     marginTop: 15, borderWidth: 1, borderColor: "#fed7aa"
@@ -664,7 +755,7 @@ export default function ItemDetails() {
                 )}
 
                 {/* ── Info enchère owner (active) ── */}
-                {item.type === "AUCTION" && isOwner && auction && !isAuctionEnded && !isAuctionClosed && (
+                {item.type === "AUCTION" && isOwner && auction && !isAuctionFinished && (
                   <>
                     <Text style={styles.section}>📊 Votre enchère</Text>
                     <Text>Prix actuel : {auction?.currentPrice ?? auction?.startPrice ?? "Pas encore d'enchère"} $</Text>
@@ -804,5 +895,86 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontWeight: "600",
     color: "#dc2626",
+  },
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#f1f5f9",
+  },
+
+  sectionTitle: {
+    fontWeight: "700",
+    fontSize: 16,
+    marginBottom: 10,
+  },
+
+  username: {
+    color: "#9ca3af",
+    fontSize: 13,
+    marginTop: 2,
+  },
+
+  city: {
+    color: "#9ca3af",
+    fontSize: 13,
+    marginTop: 2,
+  },
+
+  rating: {
+    color: "#374151",
+    marginTop: 4,
+  },
+
+  badge: {
+    marginTop: 4,
+    fontSize: 13,
+  },
+
+  reviewSection: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: "#f3f4f6",
+  },
+
+  reviewTitle: {
+    fontWeight: "600",
+    marginBottom: 8,
+    fontSize: 14,
+  },
+
+  reviewItem: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#f3f4f6",
+  },
+
+  reviewComment: {
+    color: "#374151",
+    marginTop: 2,
+  },
+
+  reviewUser: {
+    color: "#9ca3af",
+    fontSize: 12,
+    marginTop: 2,
+  },
+
+  emptyText: {
+    color: "#9ca3af",
+    fontSize: 13,
+  },
+  showMoreButton: {
+    marginTop: 12,
+    alignSelf: "flex-start",
+  },
+
+  showMoreText: {
+    color: "#2563eb",
+    fontWeight: "600",
   },
 });

@@ -9,6 +9,7 @@ import {
     Alert,
     Platform,
     ScrollView,
+    ActivityIndicator
 } from "react-native";
 
 import {
@@ -30,6 +31,7 @@ export default function AdminDisputesScreen() {
     const [itemsMap, setItemsMap] = useState<Record<number, any>>({});
     const [action, setAction] = useState<string | null>(null);
     const [refreshing, setRefreshing] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
 
     useEffect(() => {
         loadDisputes();
@@ -87,12 +89,15 @@ export default function AdminDisputesScreen() {
         }
 
         try {
+            setSubmitting(true);
+
             await resolveDisputeAdmin(
                 selectedDispute.id,
                 decision,
                 adminComment,
                 action ?? "NONE"
             );
+
             showAlert("Succès", "Litige traité !");
             setSelectedDispute(null);
             setAdminComment("");
@@ -100,8 +105,11 @@ export default function AdminDisputesScreen() {
             setAction(null);
             setActiveTab("list");
             loadDisputes();
+
         } catch {
             showAlert("Erreur", "Impossible de résoudre le litige");
+        } finally {
+            setSubmitting(false);
         }
     };
 
@@ -381,14 +389,28 @@ export default function AdminDisputesScreen() {
                                 <TouchableOpacity
                                     style={[
                                         styles.validateBtn,
-                                        (!decision || (decision === "RESOLVED" && !action) || !adminComment.trim())
-                                        && styles.validateBtnDisabled
+                                        (
+                                            submitting ||
+                                            !decision ||
+                                            (decision === "RESOLVED" && !action) ||
+                                            !adminComment.trim()
+                                        ) && styles.validateBtnDisabled
                                     ]}
                                     onPress={handleResolve}
+                                    disabled={
+                                        submitting ||
+                                        !decision ||
+                                        (decision === "RESOLVED" && !action) ||
+                                        !adminComment.trim()
+                                    }
                                 >
-                                    <Text style={styles.validateBtnText}>
-                                        ✔ Valider la décision
-                                    </Text>
+                                    {submitting ? (
+                                        <ActivityIndicator color="#fff" />
+                                    ) : (
+                                        <Text style={styles.validateBtnText}>
+                                            ✔ Valider la décision
+                                        </Text>
+                                    )}
                                 </TouchableOpacity>
 
                                 <TouchableOpacity onPress={() => setSelectedDispute(null)}>

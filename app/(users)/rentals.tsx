@@ -367,7 +367,7 @@ export default function RentalsScreen() {
                 <ActivityIndicator color="#fff" />
               ) : (
                 <Text style={{ color: "#fff", textAlign: "center" }}>
-                  Approve
+                  Approuver
                 </Text>
               )}
             </Pressable>
@@ -385,7 +385,7 @@ export default function RentalsScreen() {
                 <ActivityIndicator color="#fff" />
               ) : (
                 <Text style={{ color: "#fff", textAlign: "center" }}>
-                  Cancel
+                  Refuser
                 </Text>
               )}
             </Pressable>

@@ -76,3 +76,14 @@ export const getMyParticipatingAuctions = async () => {
   const res = await API.get("/auctions/my/participating");
   return res.data;
 };
+
+
+export const getAuctionAllByItemId = async (itemId: number) => {
+  try {
+    const res = await API.get(`/auctions/item/${itemId}`);
+    return res.data;
+  } catch (error) {
+    console.log("Auction not found");
+    return null;
+  }
+};

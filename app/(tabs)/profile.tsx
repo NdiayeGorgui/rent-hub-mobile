@@ -6,10 +6,11 @@ import { useEffect, useState } from "react";
 import { fetchMyProfile } from "../../src/api/profileService";
 import { useAuth } from "@/src/context/AuthContext";
 import { fetchItemDetails } from "@/src/api/itemService";
-import { getAuctionByItemId } from "@/src/api/auctionService";
+import { getAuctionAllByItemId, getAuctionByItemId } from "@/src/api/auctionService";
 import { fetchMyRentals } from "@/src/api/rentalService";
 import { getMyPayments, payPenalty } from "@/src/api/paymentService.web";
 import { handleMobilePayment } from "@/src/api/stripeMobile";
+import { getAuctionPublicByItemId } from "@/src/api/auctionService";
 
 export default function Profile() {
   const { user } = useAuth();
@@ -65,6 +66,26 @@ export default function Profile() {
     try {
       const data = await fetchMyProfile();
       setProfile(data);
+      if (data.publishedItems?.length) {
+  const itemsWithDetails = await Promise.all(
+    data.publishedItems.map(async (item: any) => {
+      const details = await fetchItemDetails(item.id);
+      details.id = item.id;
+      if (details.type === "AUCTION") {
+        try {
+          const auction = await getAuctionPublicByItemId(item.id); // ← public, pas de vue++
+          details.currentPrice = auction?.currentPrice ?? null;
+          details.auctionEndDate = auction?.endDate ?? null;
+        } catch {
+          details.currentPrice = null;
+          details.auctionEndDate = null;
+        }
+      }
+      return details;
+    })
+  );
+  setPublishedItemsDetails(itemsWithDetails);
+}
 
       const myPayments = await getMyPayments();
       setPayments(myPayments);
@@ -80,7 +101,7 @@ export default function Profile() {
             details.id = item.id;
             if (details.type === "AUCTION") {
               try {
-                const auction = await getAuctionByItemId(item.id);
+                const auction = await getAuctionAllByItemId(item.id);
                 details.currentPrice = auction?.currentPrice ?? null;
                 details.auctionEndDate = auction?.endDate ?? null;
               } catch { }
@@ -220,13 +241,13 @@ export default function Profile() {
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Items publiés</Text>
           {publishedItemsDetails.length === 0 ? <Text>Aucun item publié</Text> : (
-            publishedItemsDetails.map((item) => (
-              <View key={item.id} style={styles.itemRow}>
+           publishedItemsDetails.map((item, index) => (
+              <View key={`published-${item.id}-${index}`} style={styles.itemRow}>
                 <Text style={styles.itemTitle}>#{item.id} - {item.title}</Text>
                 {item.type === "AUCTION"
                   ? <Text style={styles.itemPrice}>🔥 {item.currentPrice ?? "—"} $</Text>
                   : <Text style={styles.itemPrice}>{item.pricePerDay} $/j</Text>}
-                <Text style={styles.itemRating}>⭐ {item.averageRating ?? 0}</Text>
+                <Text style={styles.itemRating}>⭐ {item.averageRating.toFixed(2) ?? 0}</Text>
                 <Text style={styles.itemDate}>
                   {item.type === "AUCTION"
                     ? `${formatDate(item.createdAt)} → ${formatDate(item.auctionEndDate)}`
@@ -243,13 +264,13 @@ export default function Profile() {
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Items loués</Text>
           {rentedItemsDetails.length === 0 ? <Text>Aucun item loué</Text> : (
-            rentedItemsDetails.map((item) => (
-              <View key={item.id} style={styles.itemRow}>
+            rentedItemsDetails.map((item ,index) => (
+               <View key={`rented-${item.id}-${index}`} style={styles.itemRow}>
                 <Text style={styles.itemTitle}>#{item.id} - {item.title}</Text>
                 {item.type === "AUCTION"
                   ? <Text style={styles.itemPrice}>🔥 {item.currentPrice ?? "—"} $</Text>
                   : <Text style={styles.itemPrice}>{item.pricePerDay} $/j</Text>}
-                <Text style={styles.itemRating}>⭐ {item.averageRating ?? 0}</Text>
+                <Text style={styles.itemRating}>⭐ {item.averageRating ? item.averageRating.toFixed(2) : "0.00"}</Text>
                 <Text style={styles.itemDate}>
                   {item.type === "AUCTION"
                     ? `${formatDate(item.createdAt)} → ${formatDate(item.auctionEndDate)}`
@@ -266,8 +287,8 @@ export default function Profile() {
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Mes paiements</Text>
           {payments.length === 0 ? <Text>Aucun paiement</Text> : (
-            payments.map((payment) => (
-              <View key={payment.id} style={styles.paymentRow}>
+            payments.map((payment, index) => (
+              <View key={`payment-${payment.id}-${index}`} style={styles.paymentRow}>
                 <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
                   <Text style={styles.paymentTitle}>
                     {payment.paymentType === "AUCTION_PENALTY" ? "⚠️ Pénalité enchère" : `Paiement #${payment.id}`}
