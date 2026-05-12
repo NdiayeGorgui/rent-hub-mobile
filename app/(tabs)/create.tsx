@@ -16,9 +16,8 @@ import { Picker } from "@react-native-picker/picker";
 import * as ImagePicker from "expo-image-picker";
 import { Image,Pressable  } from "react-native";
 import * as Location from "expo-location";
-import { API } from "../../src/api/api"; // ← ajoute cette ligne
 import * as SecureStore from "expo-secure-store";
-import { KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard } from "react-native";
+import { KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, ActivityIndicator, } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function Create() {
@@ -34,6 +33,7 @@ export default function Create() {
   const [city, setCity] = useState("");
   const [address, setAddress] = useState("");
   const [images, setImages] = useState<any[]>([]);
+  const [creating, setCreating] = useState(false);
 
   const categories = [
     { id: 1, name: "Électronique" },
@@ -97,6 +97,7 @@ if (!result.canceled) {
         Alert.alert("Erreur", "Veuillez ajouter au moins une image");
         return;
       }
+       setCreating(true);
 
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
@@ -173,7 +174,9 @@ if (!result.canceled) {
       console.log("❌ ERROR:", error?.message);
       console.log("❌ ERROR CODE:", error?.code);
       Alert.alert("Erreur", "Impossible de créer");
-    }
+    }finally {
+    setCreating(false); // ← arrête
+  }
   };
 
  return (
@@ -302,9 +305,22 @@ if (!result.canceled) {
   ))}
 </View>
 
-      <TouchableOpacity style={styles.button} onPress={handleCreate}>
-        <Text style={styles.buttonText}>Publier</Text>
-      </TouchableOpacity>
+     <TouchableOpacity
+  style={[styles.button, creating && styles.buttonDisabled]}
+  onPress={handleCreate}
+  disabled={creating}
+>
+  {creating ? (
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+      <ActivityIndicator color="#fff" size="small" />
+      <Text style={styles.buttonText}>
+        {type === "AUCTION" ? "Création de l'enchère..." : "Publication en cours..."}
+      </Text>
+    </View>
+  ) : (
+    <Text style={styles.buttonText}>Publier</Text>
+  )}
+</TouchableOpacity>
          </ScrollView>
     </TouchableWithoutFeedback>
   </KeyboardAvoidingView>
@@ -312,6 +328,7 @@ if (!result.canceled) {
 }
 
 const styles = StyleSheet.create({
+  buttonDisabled: { backgroundColor: "#9ca3af" },
   disabledButton: { backgroundColor: "#9ca3af" },
   container: { padding: 20, backgroundColor: "#f4f6f9" },
   title: { fontSize: 22, fontWeight: "bold", marginBottom: 20 },

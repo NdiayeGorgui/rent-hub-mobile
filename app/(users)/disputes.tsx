@@ -4,7 +4,8 @@ import { fetchItemDetails } from "@/src/api/itemService";
 import { getMyWonAuctions, getMyClosedAuctionsAsOwner } from "@/src/api/auctionService";
 import { getStatusLabel } from "@/src/utils/statusUtils";
 import { useEffect, useState } from "react";
-import { RefreshControl } from "react-native";
+import { RefreshControl, ScrollView } from "react-native";
+
 
 import {
   View,
@@ -15,7 +16,10 @@ import {
   TextInput,
   Alert,
   Platform,
+   KeyboardAvoidingView,
 } from "react-native";
+
+import { useSafeAreaInsets,SafeAreaView } from "react-native-safe-area-context";
 
 export default function DisputesScreen() {
   const [activeTab, setActiveTab] = useState<"list" | "create">("list");
@@ -27,6 +31,7 @@ export default function DisputesScreen() {
   const [description, setDescription] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const insets = useSafeAreaInsets();
 
   // Type de litige
   const [disputeType, setDisputeType] = useState<"rental" | "auction">("rental");
@@ -193,264 +198,411 @@ export default function DisputesScreen() {
 
   const currentAuctions = auctionRole === "winner" ? wonAuctions : ownerAuctions;
 
-  return (
-    <View style={styles.container}>
-
-      {/* TABS PRINCIPAUX */}
-      <View style={styles.tabs}>
-        <TouchableOpacity
-          style={[styles.tabButton, activeTab === "list" && styles.activeTabButton]}
-          onPress={() => setActiveTab("list")}
-        >
-          <Text style={[styles.tabText, activeTab === "list" && styles.activeTabText]}>Mes litiges</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tabButton, activeTab === "create" && styles.activeTabButton]}
-          onPress={() => setActiveTab("create")}
-        >
-          <Text style={[styles.tabText, activeTab === "create" && styles.activeTabText]}>Créer</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* ========================= LIST ========================= */}
-      {activeTab === "list" && (
-        <FlatList
-          data={disputes}
-          keyExtractor={(item) => item.id.toString()}
-
-          contentContainerStyle={{
-            flexGrow: 1,
-            paddingBottom: 20,
-          }}
-
-          refreshControl={
+return (
+  <SafeAreaView style={{ flex: 1 }}>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={20}
+    >
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{
+          flexGrow: 1,
+          padding: 20,
+          paddingBottom: insets.bottom + 40,
+          backgroundColor: "#f5f7fa",
+        }}
+        keyboardShouldPersistTaps="handled"
+        refreshControl={
+          activeTab === "list" ? (
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
             />
-          }
+          ) : undefined
+        }
+      >
 
-          ListEmptyComponent={() => (
-            <View
-              style={{
-                flex: 1,
-                justifyContent: "center",
-                alignItems: "center",
-                marginTop: 40,
-              }}
-            >
-              <Text style={styles.emptyText}>
+        {/* TABS PRINCIPAUX */}
+        <View style={styles.tabs}>
+          <TouchableOpacity
+            style={[styles.tabButton, activeTab === "list" && styles.activeTabButton]}
+            onPress={() => setActiveTab("list")}
+          >
+            <Text style={[styles.tabText, activeTab === "list" && styles.activeTabText]}>
+              Mes litiges
+            </Text>
+          </TouchableOpacity>
 
-                <Text style={{ fontSize: 40, marginBottom: 10 }}>⚖️</Text>
+          <TouchableOpacity
+            style={[styles.tabButton, activeTab === "create" && styles.activeTabButton]}
+            onPress={() => setActiveTab("create")}
+          >
+            <Text style={[styles.tabText, activeTab === "create" && styles.activeTabText]}>
+              Créer
+            </Text>
+          </TouchableOpacity>
+        </View>
 
+        {/* ========================= LIST ========================= */}
+        {activeTab === "list" && (
+          <>
+            {disputes.length === 0 ? (
+              <View
+                style={{
+                  justifyContent: "center",
+                  alignItems: "center",
+                  marginTop: 40,
+                }}
+              >
+                <Text style={{ fontSize: 40 }}>⚖️</Text>
 
-              </Text>
-              <Text style={{ color: "#999", marginTop: 10 }}>
-                Aucun litige
-              </Text>
-            </View>
-          )}
-
-          renderItem={({ item }) => (
-            <View style={styles.card}>
-
-              <View style={styles.cardHeader}>
-                <View>
-                  <Text style={styles.cardTitle}>
-                    {itemsMap[item.itemId]?.title ?? "Loading..."}
-                  </Text>
-
-                  <Text style={styles.subText}>
-                    {item.rentalId
-                      ? `📦 Location #${item.rentalId}`
-                      : `🔥 Enchère #${item.auctionId}`}
-                  </Text>
-                </View>
-
-                {renderStatusBadge(item.status)}
-              </View>
-
-              <Text style={styles.reason}>{item.reason}</Text>
-
-              {item.adminDecision && (
-                <Text style={{
-                  marginTop: 6,
-                  fontStyle: "italic",
-                  color: "#444"
-                }}>
-                  Décision admin : {item.adminDecision}
+                <Text style={{ color: "#999", marginTop: 10 }}>
+                  Aucun litige
                 </Text>
-              )}
-
-            </View>
-          )}
-        />
-      )}
-
-      {/* ========================= CREATE ========================= */}
-      {activeTab === "create" && (
-        <>
-          {/* Switch Location / Enchère */}
-          <View style={styles.tabs}>
-            <TouchableOpacity
-              style={[styles.tabButton, disputeType === "rental" && styles.activeTabButton]}
-              onPress={() => {
-                setDisputeType("rental");
-                setSelectedRental(null); setSelectedAuction(null);
-                setReason(""); setDescription("");
-              }}
-            >
-              <Text style={[styles.tabText, disputeType === "rental" && styles.activeTabText]}>
-                📦 Location
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.tabButton, disputeType === "auction" && styles.activeTabButton]}
-              onPress={() => {
-                setDisputeType("auction");
-                setSelectedRental(null); setSelectedAuction(null);
-                setReason(""); setDescription("");
-              }}
-            >
-              <Text style={[styles.tabText, disputeType === "auction" && styles.activeTabText]}>
-                🔥 Enchère
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* ── Litige LOCATION ── */}
-          {disputeType === "rental" && (
-            <>
-              {!selectedRental ? (
-                <>
-                  <Text style={styles.sectionTitle}>Sélectionnez une location terminée</Text>
-                  <FlatList
-                    data={rentals}
-                    keyExtractor={(item) => item.id.toString()}
-                    ListEmptyComponent={<Text style={styles.emptyText}>Aucune location terminée</Text>}
-                    renderItem={({ item }) => (
-                      <TouchableOpacity
-                        style={[styles.card, selectedRental?.id === item.id && styles.selectedCard]}
-                        onPress={() => setSelectedRental(item)}
-                      >
-                        <Text style={styles.cardTitle}>{itemsMap[item.itemId]?.title ?? "Loading..."}</Text>
-                        <Text style={styles.subText}>Location #{item.id}</Text>
-                      </TouchableOpacity>
-                    )}
-                  />
-                </>
-              ) : (
-                <View style={styles.form}>
-                  <Text style={styles.sectionTitle}>Litige pour location #{selectedRental.id}</Text>
-                  <Text style={styles.subText}>Item : {itemsMap[selectedRental.itemId]?.title ?? "Loading..."}</Text>
-                  <TextInput placeholder="Raison" value={reason} onChangeText={setReason} style={styles.input} />
-                  <TextInput
-                    placeholder="Description (optionnel)" value={description}
-                    onChangeText={setDescription} style={[styles.input, { height: 90 }]} multiline
-                  />
-                  <TouchableOpacity
-                    style={[styles.primaryButton, submitting && { opacity: 0.6 }]}
-                    onPress={handleCreate}
-                    disabled={submitting}
-                  >
-                    {submitting ? (
-                      <Text style={styles.primaryButtonText}>Envoi...</Text>
-                    ) : (
-                      <Text style={styles.primaryButtonText}>Envoyer le litige</Text>
-                    )}
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => setSelectedRental(null)}>
-                    <Text style={styles.cancelText}>Changer de location</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-            </>
-          )}
-
-          {/* ── Litige ENCHÈRE ── */}
-          {disputeType === "auction" && (
-            <>
-              {/* Switch rôle : J'ai gagné / Je suis le vendeur */}
-              <View style={styles.tabs}>
-                <TouchableOpacity
-                  style={[styles.tabButton, auctionRole === "winner" && styles.activeTabButton]}
-                  onPress={() => { setAuctionRole("winner"); setSelectedAuction(null); setReason(""); setDescription(""); }}
-                >
-                  <Text style={[styles.tabText, auctionRole === "winner" && styles.activeTabText]}>
-                    🏆 J'ai gagné
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.tabButton, auctionRole === "owner" && styles.activeTabButton]}
-                  onPress={() => { setAuctionRole("owner"); setSelectedAuction(null); setReason(""); setDescription(""); }}
-                >
-                  <Text style={[styles.tabText, auctionRole === "owner" && styles.activeTabText]}>
-                    📦 Je suis le vendeur
-                  </Text>
-                </TouchableOpacity>
               </View>
+            ) : (
+              disputes.map((item) => (
+                <View key={item.id} style={styles.card}>
 
-              {!selectedAuction ? (
-                <>
-                  <Text style={styles.sectionTitle}>
-                    {auctionRole === "winner" ? "Sélectionnez une enchère gagnée" : "Sélectionnez une enchère vendue"}
-                  </Text>
-                  <FlatList
-                    data={currentAuctions}
-                    keyExtractor={(item) => item.id.toString()}
-                    ListEmptyComponent={
-                      <Text style={styles.emptyText}>
-                        {auctionRole === "winner" ? "Aucune enchère gagnée disponible" : "Aucune enchère vendue disponible"}
+                  <View style={styles.cardHeader}>
+                    <View>
+                      <Text style={styles.cardTitle}>
+                        {itemsMap[item.itemId]?.title ?? "Loading..."}
                       </Text>
-                    }
-                    renderItem={({ item }) => (
-                      <TouchableOpacity
-                        style={[styles.card, selectedAuction?.id === item.id && styles.selectedCard]}
-                        onPress={() => setSelectedAuction(item)}
-                      >
-                        <Text style={styles.cardTitle}>{itemsMap[item.itemId]?.title ?? "Loading..."}</Text>
-                        <Text style={styles.subText}>Enchère #{item.id} — {item.currentPrice} $</Text>
-                        <Text style={[styles.subText, { color: "#e53935" }]}>
-                          {auctionRole === "winner" ? "⚠️ Le vendeur ne livre pas" : "⚠️ Le gagnant refuse de payer"}
-                        </Text>
-                      </TouchableOpacity>
-                    )}
-                  />
-                </>
-              ) : (
-                <View style={styles.form}>
-                  <Text style={styles.sectionTitle}>Litige pour enchère #{selectedAuction.id}</Text>
-                  <Text style={styles.subText}>Item : {itemsMap[selectedAuction.itemId]?.title ?? "Loading..."}</Text>
-                  <TextInput
-                    placeholder={auctionRole === "winner" ? "Raison (ex: le vendeur ne livre pas)" : "Raison (ex: le gagnant refuse de payer)"}
-                    value={reason} onChangeText={setReason} style={styles.input}
-                  />
-                  <TextInput
-                    placeholder="Description (optionnel)" value={description}
-                    onChangeText={setDescription} style={[styles.input, { height: 90 }]} multiline
-                  />
-                  <TouchableOpacity
-                    style={[styles.primaryButton, submitting && { opacity: 0.6 }]}
-                    onPress={handleCreateAuctionDispute}
-                    disabled={submitting}
-                  >
-                    {submitting ? (
-                      <Text style={styles.primaryButtonText}>Envoi...</Text>
+
+                      <Text style={styles.subText}>
+                        {item.rentalId
+                          ? `📦 Location #${item.rentalId}`
+                          : `🔥 Enchère #${item.auctionId}`}
+                      </Text>
+                    </View>
+
+                    {renderStatusBadge(item.status)}
+                  </View>
+
+                  <Text style={styles.reason}>{item.reason}</Text>
+
+                  {item.adminDecision && (
+                    <Text
+                      style={{
+                        marginTop: 6,
+                        fontStyle: "italic",
+                        color: "#444",
+                      }}
+                    >
+                      Décision admin : {item.adminDecision}
+                    </Text>
+                  )}
+                </View>
+              ))
+            )}
+          </>
+        )}
+
+        {/* ========================= CREATE ========================= */}
+        {activeTab === "create" && (
+          <>
+            {/* Switch Location / Enchère */}
+            <View style={styles.tabs}>
+              <TouchableOpacity
+                style={[
+                  styles.tabButton,
+                  disputeType === "rental" && styles.activeTabButton,
+                ]}
+                onPress={() => {
+                  setDisputeType("rental");
+                  setSelectedRental(null);
+                  setSelectedAuction(null);
+                  setReason("");
+                  setDescription("");
+                }}
+              >
+                <Text
+                  style={[
+                    styles.tabText,
+                    disputeType === "rental" && styles.activeTabText,
+                  ]}
+                >
+                  📦 Location
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.tabButton,
+                  disputeType === "auction" && styles.activeTabButton,
+                ]}
+                onPress={() => {
+                  setDisputeType("auction");
+                  setSelectedRental(null);
+                  setSelectedAuction(null);
+                  setReason("");
+                  setDescription("");
+                }}
+              >
+                <Text
+                  style={[
+                    styles.tabText,
+                    disputeType === "auction" && styles.activeTabText,
+                  ]}
+                >
+                  🔥 Enchère
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* ── LOCATION ── */}
+            {disputeType === "rental" && (
+              <>
+                {!selectedRental ? (
+                  <>
+                    <Text style={styles.sectionTitle}>
+                      Sélectionnez une location terminée
+                    </Text>
+
+                    {rentals.length === 0 ? (
+                      <Text style={styles.emptyText}>
+                        Aucune location terminée
+                      </Text>
                     ) : (
-                      <Text style={styles.primaryButtonText}>Envoyer le litige</Text>
+                      rentals.map((item) => (
+                        <TouchableOpacity
+                          key={item.id}
+                          style={[
+                            styles.card,
+                            selectedRental?.id === item.id &&
+                              styles.selectedCard,
+                          ]}
+                          onPress={() => setSelectedRental(item)}
+                        >
+                          <Text style={styles.cardTitle}>
+                            {itemsMap[item.itemId]?.title ?? "Loading..."}
+                          </Text>
+
+                          <Text style={styles.subText}>
+                            Location #{item.id}
+                          </Text>
+                        </TouchableOpacity>
+                      ))
                     )}
+                  </>
+                ) : (
+                  <View style={styles.form}>
+                    <Text style={styles.sectionTitle}>
+                      Litige pour location #{selectedRental.id}
+                    </Text>
+
+                    <Text style={styles.subText}>
+                      Item :{" "}
+                      {itemsMap[selectedRental.itemId]?.title ?? "Loading..."}
+                    </Text>
+
+                    <TextInput
+                      placeholder="Raison"
+                      value={reason}
+                      onChangeText={setReason}
+                      style={styles.input}
+                    />
+
+                    <TextInput
+                      placeholder="Description (optionnel)"
+                      value={description}
+                      onChangeText={setDescription}
+                      style={[styles.input, { height: 120 }]}
+                      multiline
+                      textAlignVertical="top"
+                    />
+
+                    <TouchableOpacity
+                      style={[
+                        styles.primaryButton,
+                        submitting && { opacity: 0.6 },
+                      ]}
+                      onPress={handleCreate}
+                      disabled={submitting}
+                    >
+                      <Text style={styles.primaryButtonText}>
+                        {submitting ? "Envoi..." : "Envoyer le litige"}
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={() => setSelectedRental(null)}
+                    >
+                      <Text style={styles.cancelText}>
+                        Changer de location
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </>
+            )}
+
+            {/* ── ENCHÈRE ── */}
+            {disputeType === "auction" && (
+              <>
+                <View style={styles.tabs}>
+                  <TouchableOpacity
+                    style={[
+                      styles.tabButton,
+                      auctionRole === "winner" &&
+                        styles.activeTabButton,
+                    ]}
+                    onPress={() => {
+                      setAuctionRole("winner");
+                      setSelectedAuction(null);
+                      setReason("");
+                      setDescription("");
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.tabText,
+                        auctionRole === "winner" &&
+                          styles.activeTabText,
+                      ]}
+                    >
+                      🏆 J'ai gagné
+                    </Text>
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={() => setSelectedAuction(null)}>
-                    <Text style={styles.cancelText}>Changer d'enchère</Text>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.tabButton,
+                      auctionRole === "owner" &&
+                        styles.activeTabButton,
+                    ]}
+                    onPress={() => {
+                      setAuctionRole("owner");
+                      setSelectedAuction(null);
+                      setReason("");
+                      setDescription("");
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.tabText,
+                        auctionRole === "owner" &&
+                          styles.activeTabText,
+                      ]}
+                    >
+                      📦 Je suis le vendeur
+                    </Text>
                   </TouchableOpacity>
                 </View>
-              )}
-            </>
-          )}
-        </>
-      )}
-    </View>
-  );
+
+                {!selectedAuction ? (
+                  <>
+                    <Text style={styles.sectionTitle}>
+                      {auctionRole === "winner"
+                        ? "Sélectionnez une enchère gagnée"
+                        : "Sélectionnez une enchère vendue"}
+                    </Text>
+
+                    {currentAuctions.length === 0 ? (
+                      <Text style={styles.emptyText}>
+                        {auctionRole === "winner"
+                          ? "Aucune enchère gagnée disponible"
+                          : "Aucune enchère vendue disponible"}
+                      </Text>
+                    ) : (
+                      currentAuctions.map((item) => (
+                        <TouchableOpacity
+                          key={item.id}
+                          style={[
+                            styles.card,
+                            selectedAuction?.id === item.id &&
+                              styles.selectedCard,
+                          ]}
+                          onPress={() => setSelectedAuction(item)}
+                        >
+                          <Text style={styles.cardTitle}>
+                            {itemsMap[item.itemId]?.title ?? "Loading..."}
+                          </Text>
+
+                          <Text style={styles.subText}>
+                            Enchère #{item.id} — {item.currentPrice} $
+                          </Text>
+
+                          <Text
+                            style={[
+                              styles.subText,
+                              { color: "#e53935" },
+                            ]}
+                          >
+                            {auctionRole === "winner"
+                              ? "⚠️ Le vendeur ne livre pas"
+                              : "⚠️ Le gagnant refuse de payer"}
+                          </Text>
+                        </TouchableOpacity>
+                      ))
+                    )}
+                  </>
+                ) : (
+                  <View style={styles.form}>
+                    <Text style={styles.sectionTitle}>
+                      Litige pour enchère #{selectedAuction.id}
+                    </Text>
+
+                    <Text style={styles.subText}>
+                      Item :{" "}
+                      {itemsMap[selectedAuction.itemId]?.title ??
+                        "Loading..."}
+                    </Text>
+
+                    <TextInput
+                      placeholder={
+                        auctionRole === "winner"
+                          ? "Raison (ex: le vendeur ne livre pas)"
+                          : "Raison (ex: le gagnant refuse de payer)"
+                      }
+                      value={reason}
+                      onChangeText={setReason}
+                      style={styles.input}
+                    />
+
+                    <TextInput
+                      placeholder="Description (optionnel)"
+                      value={description}
+                      onChangeText={setDescription}
+                      style={[styles.input, { height: 120 }]}
+                      multiline
+                      textAlignVertical="top"
+                    />
+
+                    <TouchableOpacity
+                      style={[
+                        styles.primaryButton,
+                        submitting && { opacity: 0.6 },
+                      ]}
+                      onPress={handleCreateAuctionDispute}
+                      disabled={submitting}
+                    >
+                      <Text style={styles.primaryButtonText}>
+                        {submitting ? "Envoi..." : "Envoyer le litige"}
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={() => setSelectedAuction(null)}
+                    >
+                      <Text style={styles.cancelText}>
+                        Changer d'enchère
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </>
+            )}
+          </>
+        )}
+
+      </ScrollView>
+    </KeyboardAvoidingView>
+  </SafeAreaView>
+);
 }
 
 const styles = StyleSheet.create({

@@ -62,6 +62,7 @@ const getTypeConfig = (type: string) => {
 
     case "DISPUTE_OPENED":
       return { icon: "⚖️", label: "Litige ouvert" };
+      case "AUCTION_CANCELLED": return { icon: "❌", label: "Enchère annulée" };
 
     case "DISPUTE_RESOLVED":
       return { icon: "✅", label: "Litige résolu" };

@@ -2,6 +2,13 @@ import { useState } from "react";
 import { View, Text, TextInput, Pressable, ActivityIndicator, Alert, StyleSheet, TouchableOpacity } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { createReview } from "@/src/api/reviewService";
+import {
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+} from "react-native";
+
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function CreateReviewScreen() {
   const router = useRouter();
@@ -10,6 +17,7 @@ export default function CreateReviewScreen() {
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState("");
   const [loading, setLoading] = useState(false);
+  const insets = useSafeAreaInsets();
 
   const ratingLabels: Record<number, string> = {
     1: "😞 Très mauvais",
@@ -49,73 +57,115 @@ export default function CreateReviewScreen() {
     );
   };
 
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Laisser un avis</Text>
+return (
+  <KeyboardAvoidingView
+    style={{ flex: 1 }}
+    behavior={Platform.OS === "ios" ? "padding" : "height"}
+    keyboardVerticalOffset={insets.top + 20}
+  >
+    <ScrollView
+      contentContainerStyle={{
+        flexGrow: 1,
+        paddingBottom: insets.bottom + 30,
+      }}
+      keyboardShouldPersistTaps="handled"
+    >
+      <View style={styles.container}>
+        <Text style={styles.title}>Laisser un avis</Text>
 
-      {/* ── Étoiles ── */}
-      <View style={styles.starsCard}>
-        <Text style={styles.starsLabel}>Votre note</Text>
-        <View style={styles.starsRow}>
-          {[1, 2, 3, 4, 5].map((star) => (
-            <TouchableOpacity
-              key={star}
-              onPress={() => setRating(star)}
-              style={styles.starButton}
-              activeOpacity={0.7}
-            >
-              <Text style={[
-                styles.star,
-                star <= rating ? styles.starActive : styles.starInactive
-              ]}>
-                ★
-              </Text>
-            </TouchableOpacity>
-          ))}
+        {/* ── Étoiles ── */}
+        <View style={styles.starsCard}>
+          <Text style={styles.starsLabel}>Votre note</Text>
+
+          <View style={styles.starsRow}>
+            {[1, 2, 3, 4, 5].map((star) => (
+              <TouchableOpacity
+                key={star}
+                onPress={() => setRating(star)}
+                style={styles.starButton}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[
+                    styles.star,
+                    star <= rating
+                      ? styles.starActive
+                      : styles.starInactive,
+                  ]}
+                >
+                  ★
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {rating > 0 ? (
+            <Text style={styles.ratingLabel}>
+              {ratingLabels[rating]}
+            </Text>
+          ) : (
+            <Text style={styles.ratingPlaceholder}>
+              Appuyez sur une étoile
+            </Text>
+          )}
         </View>
-        {rating > 0 && (
-          <Text style={styles.ratingLabel}>{ratingLabels[rating]}</Text>
-        )}
+
+        {/* ── Commentaire ── */}
+        <View style={styles.commentCard}>
+          <Text style={styles.commentLabel}>
+            Commentaire{" "}
+            <Text
+              style={{
+                color: "#9ca3af",
+                fontWeight: "400",
+              }}
+            >
+              (optionnel)
+            </Text>
+          </Text>
+
+          <TextInput
+            value={comment}
+            onChangeText={setComment}
+            multiline
+            placeholder="Partagez votre expérience..."
+            placeholderTextColor="#9ca3af"
+            style={styles.commentInput}
+          />
+
+          <Text style={styles.charCount}>
+            {comment.length} / 500
+          </Text>
+        </View>
+
+        {/* ── Bouton ── */}
+        <Pressable
+          onPress={handleSubmit}
+          disabled={loading || rating === 0}
+          style={[
+            styles.submitButton,
+            (loading || rating === 0) &&
+              styles.submitButtonDisabled,
+          ]}
+        >
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.submitText}>
+              Soumettre l'avis
+            </Text>
+          )}
+        </Pressable>
+
         {rating === 0 && (
-          <Text style={styles.ratingPlaceholder}>Appuyez sur une étoile</Text>
+          <Text style={styles.hint}>
+            Choisissez une note pour pouvoir soumettre
+          </Text>
         )}
       </View>
-
-      {/* ── Commentaire ── */}
-      <View style={styles.commentCard}>
-        <Text style={styles.commentLabel}>Commentaire <Text style={{ color: "#9ca3af", fontWeight: "400" }}>(optionnel)</Text></Text>
-        <TextInput
-          value={comment}
-          onChangeText={setComment}
-          multiline
-          placeholder="Partagez votre expérience..."
-          placeholderTextColor="#9ca3af"
-          style={styles.commentInput}
-        />
-        <Text style={styles.charCount}>{comment.length} / 500</Text>
-      </View>
-
-      {/* ── Bouton ── */}
-      <Pressable
-        onPress={handleSubmit}
-        disabled={loading || rating === 0}
-        style={[
-          styles.submitButton,
-          (loading || rating === 0) && styles.submitButtonDisabled
-        ]}
-      >
-        {loading ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.submitText}>Soumettre l'avis</Text>
-        )}
-      </Pressable>
-
-      {rating === 0 && (
-        <Text style={styles.hint}>Choisissez une note pour pouvoir soumettre</Text>
-      )}
-    </View>
-  );
+    </ScrollView>
+  </KeyboardAvoidingView>
+);
 }
 
 const styles = StyleSheet.create({
@@ -155,4 +205,5 @@ const styles = StyleSheet.create({
   submitButtonDisabled: { backgroundColor: "#9ca3af" },
   submitText: { color: "#fff", fontWeight: "700", fontSize: 16 },
   hint: { textAlign: "center", color: "#9ca3af", fontSize: 12, marginTop: 10 },
+  
 });

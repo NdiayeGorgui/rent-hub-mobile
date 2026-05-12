@@ -54,6 +54,70 @@ export default function Profile() {
     }
   };
 
+  const getPaymentTypeConfig = (type: string) => {
+    switch (type) {
+      case "SUBSCRIPTION":
+        return {
+          icon: "⭐",
+          label: "Abonnement Premium"
+        };
+
+      case "AUCTION_FEE":
+        return {
+          icon: "🔥",
+          label: "Frais d'enchère"
+        };
+       case "AUCTION_CANCELLATION_FEE":
+                return {
+                    icon: "💳",
+                    label: "Frais d'annulation enchère"
+                };
+
+      case "AUCTION_REFUND":
+        return {
+          icon: "💳",
+          label: "Remboursement enchère"
+        };
+
+      case "SUBSCRIPTION_RENEWAL":
+        return {
+          icon: "🔄",
+          label: "Renouvellement abonnement"
+        };
+
+      case "AUCTION_PENALTY":
+        return {
+          icon: "⚠️",
+          label: "Pénalité enchère"
+        };
+
+      default:
+        return {
+          icon: "💳",
+          label: type
+        };
+    }
+  };
+
+  const getPaymentStatusLabel = (status: string) => {
+    switch (status) {
+      case "SUCCESS":
+        return "Payé";
+
+      case "PENDING":
+        return "En attente";
+
+      case "FAILED":
+        return "Échoué";
+
+      case "EXPIRED":
+        return "Expiré";
+
+      default:
+        return status;
+    }
+  };
+
   useEffect(() => { loadProfile(); }, []);
 
   const onRefresh = async () => {
@@ -67,25 +131,25 @@ export default function Profile() {
       const data = await fetchMyProfile();
       setProfile(data);
       if (data.publishedItems?.length) {
-  const itemsWithDetails = await Promise.all(
-    data.publishedItems.map(async (item: any) => {
-      const details = await fetchItemDetails(item.id);
-      details.id = item.id;
-      if (details.type === "AUCTION") {
-        try {
-          const auction = await getAuctionPublicByItemId(item.id); // ← public, pas de vue++
-          details.currentPrice = auction?.currentPrice ?? null;
-          details.auctionEndDate = auction?.endDate ?? null;
-        } catch {
-          details.currentPrice = null;
-          details.auctionEndDate = null;
-        }
+        const itemsWithDetails = await Promise.all(
+          data.publishedItems.map(async (item: any) => {
+            const details = await fetchItemDetails(item.id);
+            details.id = item.id;
+            if (details.type === "AUCTION") {
+              try {
+                const auction = await getAuctionPublicByItemId(item.id); // ← public, pas de vue++
+                details.currentPrice = auction?.currentPrice ?? null;
+                details.auctionEndDate = auction?.endDate ?? null;
+              } catch {
+                details.currentPrice = null;
+                details.auctionEndDate = null;
+              }
+            }
+            return details;
+          })
+        );
+        setPublishedItemsDetails(itemsWithDetails);
       }
-      return details;
-    })
-  );
-  setPublishedItemsDetails(itemsWithDetails);
-}
 
       const myPayments = await getMyPayments();
       setPayments(myPayments);
@@ -241,7 +305,7 @@ export default function Profile() {
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Items publiés</Text>
           {publishedItemsDetails.length === 0 ? <Text>Aucun item publié</Text> : (
-           publishedItemsDetails.map((item, index) => (
+            publishedItemsDetails.map((item, index) => (
               <View key={`published-${item.id}-${index}`} style={styles.itemRow}>
                 <Text style={styles.itemTitle}>#{item.id} - {item.title}</Text>
                 {item.type === "AUCTION"
@@ -264,8 +328,8 @@ export default function Profile() {
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Items loués</Text>
           {rentedItemsDetails.length === 0 ? <Text>Aucun item loué</Text> : (
-            rentedItemsDetails.map((item ,index) => (
-               <View key={`rented-${item.id}-${index}`} style={styles.itemRow}>
+            rentedItemsDetails.map((item, index) => (
+              <View key={`rented-${item.id}-${index}`} style={styles.itemRow}>
                 <Text style={styles.itemTitle}>#{item.id} - {item.title}</Text>
                 {item.type === "AUCTION"
                   ? <Text style={styles.itemPrice}>🔥 {item.currentPrice ?? "—"} $</Text>
@@ -291,7 +355,8 @@ export default function Profile() {
               <View key={`payment-${payment.id}-${index}`} style={styles.paymentRow}>
                 <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
                   <Text style={styles.paymentTitle}>
-                    {payment.paymentType === "AUCTION_PENALTY" ? "⚠️ Pénalité enchère" : `Paiement #${payment.id}`}
+                    {getPaymentTypeConfig(payment.paymentType).icon}{" "}
+                    {getPaymentTypeConfig(payment.paymentType).label}
                   </Text>
                   <Text style={[
                     styles.paymentStatus,
@@ -300,11 +365,13 @@ export default function Profile() {
                     payment.status === "FAILED" && { color: "red" },
                     payment.status === "EXPIRED" && { color: "#9e9e9e" },
                   ]}>
-                    {payment.status}
+                    {getPaymentStatusLabel(payment.status)}
                   </Text>
                 </View>
                 <Text style={styles.paymentAmount}>{payment.amount} $</Text>
-                <Text style={styles.paymentType}>{payment.paymentType}</Text>
+                <Text style={styles.paymentType}>
+                  {getPaymentTypeConfig(payment.paymentType).label}
+                </Text>
                 <Text style={styles.paymentDate}>{formatDate(payment.createdAt)}</Text>
                 {payment.paymentType === "AUCTION_PENALTY" && payment.status === "PENDING" && (
                   <TouchableOpacity style={styles.inlinePayBtn} onPress={() => setPenaltyStep("payment")}>

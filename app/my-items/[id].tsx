@@ -89,9 +89,12 @@ export default function ItemDetails() {
     { id: 10, name: "Autres" },
   ];
 
-  const isAuctionFinished =
-    item?.type === "AUCTION" &&
-    (item?.status === "CANCELLED_AUCTION" || item?.active === false);
+const isAuctionClosed =
+    item?.type === "AUCTION" && 
+    (
+        item?.status === "CANCELLED_AUCTION" ||
+        auction?.status === "CLOSED"
+    );
 
   // ── DatePickers ──────────────────────────────────────
   const openStartDatePicker = () => {
@@ -404,19 +407,25 @@ export default function ItemDetails() {
       reservePrice: Number(reservePrice) || Number(startPrice),
       endDate: endDateAuction,
     };
-    showConfirm("Publier l'enchère", "⚠️ Le prix de départ est définitif.\n\nL'annulation entraînera des frais de 50$.\n\nContinuer ?", async () => {
-      try {
-        setAuctionLoading(true);
-        await createAuction(payload);
-        showAlert("Succès", "Enchère créée !");
-        router.replace("/my-items");
-        setStartPrice(""); setReservePrice(""); setEndDateAuction("");
-      } catch (error: any) {
-        showAlert("Erreur", error?.response?.data?.message || "Erreur création");
-      } finally {
-        setAuctionLoading(false);
-      }
-    });
+ showConfirm("Publier l'enchère", "⚠️ Le prix de départ est définitif.\n\nL'annulation entraînera des frais de 50$.\n\nContinuer ?", async () => {
+  try {
+    setAuctionLoading(true);
+    await createAuction(payload);
+
+    // ← Recharge item + auction sans redirection
+    const updatedItem = await fetchItemDetails(Number(id));
+    setItem(updatedItem);
+    const auctionData = await getAuctionByItemId(Number(id));
+    if (auctionData) setAuction(auctionData);
+
+    setStartPrice(""); setReservePrice(""); setEndDateAuction("");
+    showAlert("Succès", "Enchère créée !");
+  } catch (error: any) {
+    showAlert("Erreur", error?.response?.data?.message || "Erreur création");
+  } finally {
+    setAuctionLoading(false);
+  }
+});
   };
 
   // ── Render ────────────────────────────────────────────
@@ -460,17 +469,22 @@ export default function ItemDetails() {
         contentContainerStyle={{ paddingBottom: +150 }} // important 👇
         keyboardShouldPersistTaps="handled"
       >
-        {isAuctionFinished && (
-          <Text style={{ color: "red", fontWeight: "bold", marginBottom: 10 }}>
-            {item.status === "CANCELLED_AUCTION" ? "❌ Enchère annulée" : "⛔ Enchère terminée"}
-          </Text>
-        )}
+{isAuctionClosed && (
+  <View style={{
+    backgroundColor: "#fef2f2", borderRadius: 10, padding: 14,
+    marginBottom: 10, borderWidth: 1, borderColor: "#fca5a5"
+  }}>
+    <Text style={{ color: "#dc2626", fontWeight: "600", textAlign: "center" }}>
+      {item?.status === "CANCELLED_AUCTION" ? "❌ Enchère annulée" : "⛔ Enchère terminée"}
+    </Text>
+  </View>
+)}
 
         {/* ── Management menu ── */}
         {isOwner && (
           <View style={styles.managementMenu}>
 
-            {editMode && (
+            {editMode && !isAuctionClosed && (
               <Animated.View style={[styles.editContainer, { opacity: slideAnim }]}>
                 <Text style={styles.section}>✏️ Modifier l'item</Text>
                 <TextInput placeholder="Titre" value={editTitle} onChangeText={setEditTitle} style={styles.input} />
@@ -525,7 +539,7 @@ export default function ItemDetails() {
               </Animated.View>
             )}
 
-            {!isAuctionFinished && (
+            {!isAuctionClosed && (
               <Pressable
                 style={({ pressed }) => [
                   styles.manageCard,
@@ -541,14 +555,14 @@ export default function ItemDetails() {
             {item?.type === "AUCTION" ? (
               auction &&
               auction.status === "OPEN" &&
-              !isAuctionFinished && (
+              !isAuctionClosed && (
                 <Pressable style={[styles.manageCard, styles.deactivateCard]} onPress={handleCloseAuction}>
                   <Text style={styles.manageIcon}>❌</Text>
                   <Text style={styles.manageLabel}>Annuler l'enchère</Text>
                 </Pressable>
               )
             ) : (
-              !isAuctionFinished && (
+              !isAuctionClosed && (
                 <Pressable
                   style={[styles.manageCard, item.active ? styles.deactivateCard : styles.activateCard]}
                   onPress={handleDeactivate}
@@ -621,8 +635,6 @@ export default function ItemDetails() {
         <Text>{item.city}</Text>
         <Text>{item.address}</Text>
 
-        <Text style={styles.section}>⭐ Note moyenne</Text>
-        <Text>{item.averageRating ?? "Aucune note"}</Text>
 
         <Text style={styles.section}>👤 Propriétaire</Text>
         <Text style={styles.ownerName}>{item.publisher?.fullName}</Text>
@@ -631,6 +643,11 @@ export default function ItemDetails() {
         </Link>
         <Text>@{item.publisher?.username}</Text>
         <Text>{item.publisher?.city}</Text>
+         <Text style={styles.rating}>
+                            {item.publisher?.averageRating
+                              ? `${Number(item.publisher.averageRating).toFixed(1)} ⭐ (${item.publisher.reviewsCount ?? 0} avis)`
+                              : "Aucune note"}
+                          </Text>
         {item.publisher?.badge && <Text>🏅 Badge : {item.publisher.badge}</Text>}
 
         <Text style={styles.section}>⭐ Avis sur ce propriétaire ({userReviews.length})</Text>
@@ -710,7 +727,7 @@ export default function ItemDetails() {
         )}
 
         {/* ── Bid ── */}
-        {item.type === "AUCTION" && !isOwner && !isAuctionFinished && currentUser?.premium && (
+        {item.type === "AUCTION" && !isOwner && !isAuctionClosed && currentUser?.premium && (
           <>
             <Text style={styles.section}>💰 Placer une enchère</Text>
             <Text>Prix actuel : {auction?.currentPrice ?? auction?.startPrice ?? "Pas encore d'enchère"} $</Text>
@@ -721,7 +738,7 @@ export default function ItemDetails() {
           </>
         )}
 
-        {item.type === "AUCTION" && !isOwner && !currentUser?.premium && !isAuctionFinished && (
+        {item.type === "AUCTION" && !isOwner && !currentUser?.premium && !isAuctionClosed && (
           <Text style={{ color: "orange", marginTop: 15 }}>⭐ Vous devez être Premium pour participer aux enchères.</Text>
         )}
 
@@ -744,7 +761,7 @@ export default function ItemDetails() {
         )}
 
         {/* ── Publier enchère ── */}
-        {item.type === "AUCTION" && isOwner && !auction && !isAuctionFinished && (
+        {item.type === "AUCTION" && isOwner && !auction && !isAuctionClosed && (
           <>
             <Text style={styles.section}>🔥 Publier l'enchère</Text>
             <TextInput placeholder="Prix initial" value={startPrice} onChangeText={setStartPrice} keyboardType="numeric" style={styles.input} />
@@ -761,7 +778,7 @@ export default function ItemDetails() {
         )}
 
         {/* ── Info enchère owner ── */}
-        {item.type === "AUCTION" && isOwner && auction && auction.status === "OPEN" && !isAuctionFinished && (
+        {item.type === "AUCTION" && isOwner && auction?.status === "OPEN" && (
           <>
             <Text style={styles.section}>📊 Votre enchère</Text>
             <Text>Prix actuel : {auction?.currentPrice ?? auction?.startPrice ?? "Pas encore d'enchère"} $</Text>
@@ -826,4 +843,8 @@ const styles = StyleSheet.create({
   imageButton: { backgroundColor: "#16a34a", padding: 12, borderRadius: 8, alignItems: "center", marginTop: 10 },
   statsContainer: { backgroundColor: "#fff", borderRadius: 12, padding: 15, marginTop: 10, overflow: "hidden" },
   deactivateButton: { backgroundColor: "#dc2626", padding: 12, borderRadius: 8, marginTop: 15 },
+   rating: {
+    color: "#374151",
+    marginTop: 4,
+  },
 });

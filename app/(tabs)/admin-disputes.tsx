@@ -9,8 +9,13 @@ import {
     Alert,
     Platform,
     ScrollView,
-    ActivityIndicator
+    ActivityIndicator,
+    KeyboardAvoidingView,
 } from "react-native";
+import {
+    SafeAreaView,
+    useSafeAreaInsets
+} from "react-native-safe-area-context";
 
 import {
     getAllDisputesAdmin,
@@ -32,6 +37,8 @@ export default function AdminDisputesScreen() {
     const [action, setAction] = useState<string | null>(null);
     const [refreshing, setRefreshing] = useState(false);
     const [submitting, setSubmitting] = useState(false);
+
+    const insets = useSafeAreaInsets();
 
     useEffect(() => {
         loadDisputes();
@@ -261,164 +268,179 @@ export default function AdminDisputesScreen() {
                         </>
                     ) : (
                         // ✅ ScrollView pour que le bouton Valider soit toujours accessible
-                        <ScrollView showsVerticalScrollIndicator={false}>
-                            <View style={styles.form}>
+                        <SafeAreaView style={{ flex: 1 }}>
+                            <KeyboardAvoidingView
+                                style={{ flex: 1 }}
+                                behavior={Platform.OS === "ios" ? "padding" : "height"}
+                                keyboardVerticalOffset={20}
+                            >
+                                <ScrollView
+                                    showsVerticalScrollIndicator={false}
+                                    keyboardShouldPersistTaps="handled"
+                                    contentContainerStyle={{
+                                        flexGrow: 1,
+                                        paddingBottom: insets.bottom + 30,
+                                    }}
+                                >
+                                    <View style={styles.form}>
 
-                                <Text style={styles.sectionTitle}>
-                                    Résolution du litige #{selectedDispute.id}
-                                </Text>
-
-                                <Text style={styles.subText}>
-                                    Item : {itemsMap[selectedDispute.itemId]?.title ?? "Loading..."}
-                                </Text>
-
-                                <Text style={styles.subText}>
-                                    {selectedDispute.rentalId
-                                        ? `📦 Location #${selectedDispute.rentalId}`
-                                        : `🔥 Enchère #${selectedDispute.auctionId}`}
-                                </Text>
-
-                                <Text style={styles.subText}>
-                                    Raison : {selectedDispute.reason}
-                                </Text>
-
-                                {/* ── Décision ── */}
-                                <Text style={styles.sectionTitle}>Décision :</Text>
-                                <View style={{ flexDirection: "row", gap: 10 }}>
-                                    <TouchableOpacity
-                                        style={[
-                                            styles.decisionBtn,
-                                            decision === "RESOLVED" && styles.decisionBtnApprove,
-                                        ]}
-                                        onPress={() => { setDecision("RESOLVED"); setAction(null); }}
-                                    >
-                                        <Text style={[
-                                            styles.decisionBtnText,
-                                            decision === "RESOLVED" && { color: "#fff" }
-                                        ]}>
-                                            ✅ Approuver
+                                        <Text style={styles.sectionTitle}>
+                                            Résolution du litige #{selectedDispute.id}
                                         </Text>
-                                    </TouchableOpacity>
 
-                                    <TouchableOpacity
-                                        style={[
-                                            styles.decisionBtn,
-                                            decision === "REJECTED" && styles.decisionBtnReject,
-                                        ]}
-                                        onPress={() => { setDecision("REJECTED"); setAction(null); }}
-                                    >
-                                        <Text style={[
-                                            styles.decisionBtnText,
-                                            decision === "REJECTED" && { color: "#fff" }
-                                        ]}>
-                                            ❌ Rejeter
+                                        <Text style={styles.subText}>
+                                            Item : {itemsMap[selectedDispute.itemId]?.title ?? "Loading..."}
                                         </Text>
-                                    </TouchableOpacity>
-                                </View>
 
-                                {/* ── Actions — uniquement si RESOLVED ── */}
-                                {decision === "RESOLVED" && (
-                                    <View style={{ gap: 8 }}>
-                                        <Text style={styles.sectionTitle}>Action :</Text>
+                                        <Text style={styles.subText}>
+                                            {selectedDispute.rentalId
+                                                ? `📦 Location #${selectedDispute.rentalId}`
+                                                : `🔥 Enchère #${selectedDispute.auctionId}`}
+                                        </Text>
 
-                                        <TouchableOpacity
-                                            style={[styles.actionBtn, action === "NONE" && styles.actionBtnActive]}
-                                            onPress={() => setAction("NONE")}
-                                        >
-                                            <Text style={action === "NONE" ? styles.actionBtnActiveText : {}}>
-                                                Aucune action
-                                            </Text>
-                                        </TouchableOpacity>
+                                        <Text style={styles.subText}>
+                                            Raison : {selectedDispute.reason}
+                                        </Text>
 
-                                        <TouchableOpacity
-                                            style={[styles.actionBtn, action === "SUSPEND_USER" && styles.actionBtnActive]}
-                                            onPress={() => setAction("SUSPEND_USER")}
-                                        >
-                                            <Text style={action === "SUSPEND_USER" ? styles.actionBtnActiveText : {}}>
-                                                🔴 Suspendre l'utilisateur
-                                            </Text>
-                                        </TouchableOpacity>
-
-                                        <TouchableOpacity
-                                            style={[styles.actionBtn, action === "DEACTIVATE_ITEM" && styles.actionBtnActive]}
-                                            onPress={() => setAction("DEACTIVATE_ITEM")}
-                                        >
-                                            <Text style={action === "DEACTIVATE_ITEM" ? styles.actionBtnActiveText : {}}>
-                                                🚫 Désactiver l'item
-                                            </Text>
-                                        </TouchableOpacity>
-
-                                        {/* ✅ Visible uniquement pour les litiges d'enchère */}
-                                        {isAuctionDispute && (
+                                        {/* ── Décision ── */}
+                                        <Text style={styles.sectionTitle}>Décision :</Text>
+                                        <View style={{ flexDirection: "row", gap: 10 }}>
                                             <TouchableOpacity
-                                                style={[styles.actionBtn, action === "REFUND_AUCTION_FEE" && styles.actionBtnActive]}
-                                                onPress={() => setAction("REFUND_AUCTION_FEE")}
+                                                style={[
+                                                    styles.decisionBtn,
+                                                    decision === "RESOLVED" && styles.decisionBtnApprove,
+                                                ]}
+                                                onPress={() => { setDecision("RESOLVED"); setAction(null); }}
                                             >
-                                                <Text style={action === "REFUND_AUCTION_FEE" ? styles.actionBtnActiveText : {}}>
-                                                    💸 Rembourser le owner + pénalité winner
+                                                <Text style={[
+                                                    styles.decisionBtnText,
+                                                    decision === "RESOLVED" && { color: "#fff" }
+                                                ]}>
+                                                    ✅ Approuver
                                                 </Text>
                                             </TouchableOpacity>
+
+                                            <TouchableOpacity
+                                                style={[
+                                                    styles.decisionBtn,
+                                                    decision === "REJECTED" && styles.decisionBtnReject,
+                                                ]}
+                                                onPress={() => { setDecision("REJECTED"); setAction(null); }}
+                                            >
+                                                <Text style={[
+                                                    styles.decisionBtnText,
+                                                    decision === "REJECTED" && { color: "#fff" }
+                                                ]}>
+                                                    ❌ Rejeter
+                                                </Text>
+                                            </TouchableOpacity>
+                                        </View>
+
+                                        {/* ── Actions — uniquement si RESOLVED ── */}
+                                        {decision === "RESOLVED" && (
+                                            <View style={{ gap: 8 }}>
+                                                <Text style={styles.sectionTitle}>Action :</Text>
+
+                                                <TouchableOpacity
+                                                    style={[styles.actionBtn, action === "NONE" && styles.actionBtnActive]}
+                                                    onPress={() => setAction("NONE")}
+                                                >
+                                                    <Text style={action === "NONE" ? styles.actionBtnActiveText : {}}>
+                                                        Aucune action
+                                                    </Text>
+                                                </TouchableOpacity>
+
+                                                <TouchableOpacity
+                                                    style={[styles.actionBtn, action === "SUSPEND_USER" && styles.actionBtnActive]}
+                                                    onPress={() => setAction("SUSPEND_USER")}
+                                                >
+                                                    <Text style={action === "SUSPEND_USER" ? styles.actionBtnActiveText : {}}>
+                                                        🔴 Suspendre l'utilisateur
+                                                    </Text>
+                                                </TouchableOpacity>
+
+                                                <TouchableOpacity
+                                                    style={[styles.actionBtn, action === "DEACTIVATE_ITEM" && styles.actionBtnActive]}
+                                                    onPress={() => setAction("DEACTIVATE_ITEM")}
+                                                >
+                                                    <Text style={action === "DEACTIVATE_ITEM" ? styles.actionBtnActiveText : {}}>
+                                                        🚫 Désactiver l'item
+                                                    </Text>
+                                                </TouchableOpacity>
+
+                                                {/* ✅ Visible uniquement pour les litiges d'enchère */}
+                                                {isAuctionDispute && (
+                                                    <TouchableOpacity
+                                                        style={[styles.actionBtn, action === "REFUND_AUCTION_FEE" && styles.actionBtnActive]}
+                                                        onPress={() => setAction("REFUND_AUCTION_FEE")}
+                                                    >
+                                                        <Text style={action === "REFUND_AUCTION_FEE" ? styles.actionBtnActiveText : {}}>
+                                                            💸 Rembourser le owner + pénalité winner
+                                                        </Text>
+                                                    </TouchableOpacity>
+                                                )}
+                                            </View>
                                         )}
-                                    </View>
-                                )}
 
-                                {/* ── Résumé de la sélection ── */}
-                                {decision && (
-                                    <View style={styles.summaryBox}>
-                                        <Text style={styles.summaryText}>
-                                            Décision : <Text style={{ fontWeight: "bold" }}> {getDecisionLabel(decision)}</Text>
-                                        </Text>
-                                        {action && (
-                                            <Text style={styles.summaryText}>
-                                                Action : <Text style={{ fontWeight: "bold" }}>{action}</Text>
-                                            </Text>
+                                        {/* ── Résumé de la sélection ── */}
+                                        {decision && (
+                                            <View style={styles.summaryBox}>
+                                                <Text style={styles.summaryText}>
+                                                    Décision : <Text style={{ fontWeight: "bold" }}> {getDecisionLabel(decision)}</Text>
+                                                </Text>
+                                                {action && (
+                                                    <Text style={styles.summaryText}>
+                                                        Action : <Text style={{ fontWeight: "bold" }}>{action}</Text>
+                                                    </Text>
+                                                )}
+                                            </View>
                                         )}
+
+                                        {/* ── Commentaire ── */}
+                                        <TextInput
+                                            placeholder="Commentaire admin (obligatoire)"
+                                            value={adminComment}
+                                            onChangeText={setAdminComment}
+                                            style={[styles.input, { height: 100 }]}
+                                            multiline
+                                        />
+
+                                        {/* ✅ Bouton Valider — toujours visible grâce au ScrollView */}
+                                        <TouchableOpacity
+                                            style={[
+                                                styles.validateBtn,
+                                                (
+                                                    submitting ||
+                                                    !decision ||
+                                                    (decision === "RESOLVED" && !action) ||
+                                                    !adminComment.trim()
+                                                ) && styles.validateBtnDisabled
+                                            ]}
+                                            onPress={handleResolve}
+                                            disabled={
+                                                submitting ||
+                                                !decision ||
+                                                (decision === "RESOLVED" && !action) ||
+                                                !adminComment.trim()
+                                            }
+                                        >
+                                            {submitting ? (
+                                                <ActivityIndicator color="#fff" />
+                                            ) : (
+                                                <Text style={styles.validateBtnText}>
+                                                    ✔ Valider la décision
+                                                </Text>
+                                            )}
+                                        </TouchableOpacity>
+
+                                        <TouchableOpacity onPress={() => setSelectedDispute(null)}>
+                                            <Text style={styles.cancelText}>Changer de litige</Text>
+                                        </TouchableOpacity>
+
                                     </View>
-                                )}
-
-                                {/* ── Commentaire ── */}
-                                <TextInput
-                                    placeholder="Commentaire admin (obligatoire)"
-                                    value={adminComment}
-                                    onChangeText={setAdminComment}
-                                    style={[styles.input, { height: 100 }]}
-                                    multiline
-                                />
-
-                                {/* ✅ Bouton Valider — toujours visible grâce au ScrollView */}
-                                <TouchableOpacity
-                                    style={[
-                                        styles.validateBtn,
-                                        (
-                                            submitting ||
-                                            !decision ||
-                                            (decision === "RESOLVED" && !action) ||
-                                            !adminComment.trim()
-                                        ) && styles.validateBtnDisabled
-                                    ]}
-                                    onPress={handleResolve}
-                                    disabled={
-                                        submitting ||
-                                        !decision ||
-                                        (decision === "RESOLVED" && !action) ||
-                                        !adminComment.trim()
-                                    }
-                                >
-                                    {submitting ? (
-                                        <ActivityIndicator color="#fff" />
-                                    ) : (
-                                        <Text style={styles.validateBtnText}>
-                                            ✔ Valider la décision
-                                        </Text>
-                                    )}
-                                </TouchableOpacity>
-
-                                <TouchableOpacity onPress={() => setSelectedDispute(null)}>
-                                    <Text style={styles.cancelText}>Changer de litige</Text>
-                                </TouchableOpacity>
-
-                            </View>
-                        </ScrollView>
+                                </ScrollView>
+                            </KeyboardAvoidingView>
+                        </SafeAreaView>
                     )}
                 </>
             )}

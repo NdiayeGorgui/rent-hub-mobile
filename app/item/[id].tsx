@@ -609,12 +609,6 @@ export default function ItemDetails() {
                 )}
 
 
-
-                {item.publisher?.badge && (
-                  <Text>🏅 Badge : {item.publisher.badge}</Text>
-
-                )}
-
                 {/* ── Bannière enchère terminée / annulée ── */}
                 {isAuctionFinished && (
                   <View style={{
