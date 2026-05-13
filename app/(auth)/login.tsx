@@ -110,7 +110,7 @@ export default function Login() {
         }}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.logo}>🏠 RentHub</Text>
+        <Text style={styles.logo}>🏠 Gonifty</Text>
         <Text style={styles.subtitle}>Connexion</Text>
 
         <TextInput

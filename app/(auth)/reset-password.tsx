@@ -50,7 +50,7 @@ export default function ResetPassword() {
 
     return (
         <View style={styles.container}>
-            <Text style={styles.logo}>🏠 RentHub</Text>
+            <Text style={styles.logo}>🏠 Gonifty</Text>
             <Text style={styles.subtitle}>Nouveau mot de passe</Text>
 
             <TextInput

@@ -98,6 +98,7 @@ export default function Register() {
           }}
           keyboardShouldPersistTaps="handled"
         >
+           <Text style={styles.logo}>🏠 Gonifty</Text>
           <Text style={styles.logo}>Créer un compte</Text>
 
           {fields.map((field) => (

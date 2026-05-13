@@ -203,6 +203,14 @@ export default function ItemDetails() {
 
   }, [auction]);
 
+  const formatLocalDate = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
+  };
+
   const showAlert = (title: string, message: string) => {
     if (Platform.OS === "web") {
       alert(`${title}\n\n${message}`);
@@ -691,33 +699,118 @@ export default function ItemDetails() {
                 {item.type === "RENTAL" && !isOwner && item.active !== false && (
                   <>
                     <Text style={styles.section}>📅 Louer cet item</Text>
-                    <Pressable style={styles.input} onPress={() => setShowStartPicker(true)}>
-                      <Text>{startDate || "Date début"}</Text>
+
+                    {/* ── Date début ── */}
+                    <Pressable
+                      style={styles.input}
+                      onPress={() => setShowStartPicker(true)}
+                    >
+                      <Text>
+                        {startDate || "Date début"}
+                      </Text>
                     </Pressable>
+
                     {showStartPicker && (
                       <DateTimePicker
-                        value={new Date()} mode="date" display="default"
+                        value={startDate ? new Date(startDate) : new Date()}
+                        mode="date"
+                        display="default"
+                        minimumDate={new Date()} // ← aujourd’hui minimum
                         onChange={(event, selectedDate) => {
                           setShowStartPicker(false);
-                          if (selectedDate) setStartDate(selectedDate.toISOString().split("T")[0]);
+
+                          if (selectedDate) {
+                            const formatted =
+                              formatLocalDate(selectedDate)
+
+                            setStartDate(formatted);
+
+                            // 🔥 Reset endDate si invalide
+                            if (endDate && endDate <= formatted) {
+                              setEndDate("");
+                            }
+                          }
                         }}
                       />
                     )}
-                    <Pressable style={styles.input} onPress={() => setShowEndPicker(true)}>
-                      <Text>{endDate || "Date fin"}</Text>
+
+                    {/* ── Date fin ── */}
+                    <Pressable
+                      style={styles.input}
+                      onPress={() => {
+                        if (!startDate) {
+                          showAlert(
+                            "Date début requise",
+                            "Veuillez choisir une date de début d'abord"
+                          );
+                          return;
+                        }
+
+                        setShowEndPicker(true);
+                      }}
+                    >
+                      <Text>
+                        {endDate || "Date fin"}
+                      </Text>
                     </Pressable>
+
                     {showEndPicker && (
                       <DateTimePicker
-                        value={endDate ? new Date(endDate) : new Date()}
-                        mode="date" display="default" minimumDate={new Date()}
+                        value={
+                          endDate
+                            ? new Date(endDate)
+                            : (() => {
+                              const d = new Date(startDate);
+                              d.setDate(d.getDate() + 1);
+                              return d;
+                            })()
+                        }
+                        mode="date"
+                        display="default"
+                        minimumDate={
+                          (() => {
+                            const d = new Date(startDate);
+                            d.setDate(d.getDate() + 1); // ← lendemain obligatoire
+                            return d;
+                          })()
+                        }
                         onChange={(event, selectedDate) => {
                           setShowEndPicker(false);
-                          if (selectedDate) setEndDate(selectedDate.toISOString().split("T")[0]);
+
+                          if (selectedDate) {
+                            setEndDate(
+                              formatLocalDate(selectedDate)
+                            );
+                          }
                         }}
                       />
                     )}
-                    <Pressable onPress={handleRent} style={styles.rentButton} disabled={rentLoading}>
-                      <Text style={{ color: "#fff", textAlign: "center", fontWeight: "600" }}>
+
+                    <Pressable
+                      onPress={handleRent}
+                      disabled={
+                        rentLoading ||
+                        !startDate ||
+                        !endDate
+                      }
+                      style={[
+                        styles.rentButton,
+                        (
+                          rentLoading ||
+                          !startDate ||
+                          !endDate
+                        ) && {
+                          opacity: 0.5,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={{
+                          color: "#fff",
+                          textAlign: "center",
+                          fontWeight: "600",
+                        }}
+                      >
                         {rentLoading ? "Envoi..." : "Louer maintenant"}
                       </Text>
                     </Pressable>
