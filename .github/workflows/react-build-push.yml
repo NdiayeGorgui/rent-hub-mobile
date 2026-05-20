@@ -74,5 +74,7 @@ jobs:
           context: .
           push: true
           tags: ${{ steps.meta.outputs.tags }}
+          build-args: |
+            NEXT_PUBLIC_API_URL=https://api.gonifty.ca
           cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/renthub-mobile:buildcache
           cache-to: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/renthub-mobile:buildcache,mode=max
