@@ -16,13 +16,11 @@ import { Image } from "react-native";
 import { Platform } from "react-native";
 import { getAuctionPublicByItemId } from "../../src/api/auctionService";
 import * as Location from "expo-location";
-
+import { BASE_URL } from "@/src/utils/baseURL";
 
 export default function Home() {
 
-  const baseURL = Platform.OS === "android"
-    ? "http://192.168.0.118:8080"  // Android (émulateur ET vrai téléphone)
-    : "http://192.168.0.118:8080"; // 
+ 
 
   const categories = [
     { id: 1, name: "Électronique" },
@@ -145,12 +143,12 @@ export default function Home() {
     }
   };
   const getImage = (item: any) => {
-    const baseURL = "http://192.168.0.118:8080";
+   
 
     // ✅ cas tableau
     if (item.imageUrls && item.imageUrls.length > 0) {
       const url = item.imageUrls[0];
-      return url.startsWith("http") ? url : `${baseURL}${url}`;
+      return url.startsWith("http") ? url : `${BASE_URL}${url}`;
     }
 
     // ✅ cas string
@@ -454,7 +452,7 @@ export default function Home() {
             // cas 1 : tableau imageUrls
             if (item.imageUrls && item.imageUrls.length > 0) {
               const url = item.imageUrls[0];
-              uri = url.startsWith("http") ? url : `${baseURL}${url}`;
+              uri = url.startsWith("http") ? url : `${BASE_URL}${url}`;
             }
 
             // cas 2 : imageUrl (searchItems)

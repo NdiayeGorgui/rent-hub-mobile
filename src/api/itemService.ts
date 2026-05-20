@@ -2,12 +2,9 @@ import { Platform } from "react-native";
 import { API } from "./api";
 import axios from "axios";
 import * as SecureStore from "expo-secure-store";
+import { BASE_URL } from "@/src/utils/baseURL";
 
 
-const baseURL =
-  Platform.OS === "android"
-    ? "http://192.168.0.118:8080"
-    : "http://192.168.0.118:8080";
 
 // Liste des items actifs
 export const fetchItems = async () => {
@@ -89,7 +86,7 @@ export const updateItem = async (id: number, data: any, images: any[]) => {
 
   const existingUrls = images
     .filter(img => !img.uri.startsWith("file") && !img.uri.startsWith("blob"))
-    .map(img => img.uri.replace(baseURL, ""));
+    .map(img => img.uri.replace(BASE_URL, ""));
 
   formData.append("existingImages", JSON.stringify(existingUrls));
 

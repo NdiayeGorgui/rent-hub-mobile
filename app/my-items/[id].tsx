@@ -23,8 +23,7 @@ import * as SecureStore from "expo-secure-store";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { KeyboardAvoidingView, Platform } from "react-native";
 
-
-const BASE_URL = "http://192.168.0.118:8080";
+import { BASE_URL } from "@/src/utils/baseURL";
 
 export default function ItemDetails() {
   const { id } = useLocalSearchParams();

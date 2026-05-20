@@ -12,13 +12,11 @@ import { useEffect, useState } from "react";
 import { fetchMyItems } from "../../src/api/itemService";
 import { router } from "expo-router";
 import { Platform } from "react-native";
-
+import { BASE_URL } from "@/src/utils/baseURL";
 
 export default function MyItems() {
 
-  const baseURL = Platform.OS === "android"
-    ? "http://192.168.0.118:8080"  // Android (émulateur ET vrai téléphone)
-    : "http://192.168.0.118:8080"; // 
+
 
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -90,7 +88,7 @@ export default function MyItems() {
               <Image
                 source={{
                   uri: item.imageUrls
-                    ? `${baseURL}${item.imageUrls[0]}`
+                    ? `${BASE_URL}${item.imageUrls[0]}`
                     : item.imageUrl,
                 }}
                 style={styles.image}

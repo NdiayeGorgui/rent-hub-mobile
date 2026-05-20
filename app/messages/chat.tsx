@@ -11,8 +11,8 @@ import { Image } from "react-native"
 import { getConversationMessages, markMessageAsRead } from "@/src/api/messageService"
 import { getCurrentUser } from "@/src/api/authService"
 import { MessageContext } from "@/src/context/MessageContext"
+import { BASE_URL } from "@/src/utils/baseURL";
 
-const BASE_URL = "http://192.168.0.118:8080"
 
 export default function ChatScreen() {
   const { conversationId, receiverId, itemId, receiverUsername } = useLocalSearchParams()

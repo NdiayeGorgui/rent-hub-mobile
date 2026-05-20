@@ -21,6 +21,7 @@ import { getReviewsByItem, getReviewsByUser, getReviewsCountByItem, getAllReview
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { ScrollView as HorizontalScroll, Dimensions } from "react-native";
+import { BASE_URL } from "@/src/utils/baseURL";
 
 
 
@@ -72,9 +73,7 @@ export default function ItemDetails() {
   const router = useRouter();
 
 
-  const baseURL = Platform.OS === "android"
-    ? "http://192.168.0.118:8080"  // Android (émulateur ET vrai téléphone)
-    : "http://192.168.0.118:8080"; // 
+ 
 
 
   useEffect(() => {
@@ -428,7 +427,7 @@ export default function ItemDetails() {
                       {item.imageUrls.map((url: string, index: number) => (
                         <View key={index} style={{ width: width - 30, aspectRatio: 4 / 3, backgroundColor: "#f0f0f0", borderRadius: 12 }}>
                           <Image
-                            source={{ uri: `${baseURL}${url}` }}
+                            source={{ uri: `${BASE_URL}${url}` }}
                             style={{ width: "100%", height: "100%", borderRadius: 12 }}
                             resizeMode="contain"
                           />

@@ -4,13 +4,17 @@ import * as SecureStore from "expo-secure-store";
 import { router } from "expo-router";
 
 const getBaseURL = () => {
-  if (Platform.OS === "android") return "http://192.168.0.118:8080/api";
-  return "http://192.168.0.118:8080/api";
+  if (__DEV__) {
+    // Dev — même URL pour Android et iOS
+    return "http://192.168.0.118:9191/api"; // ← port 9191
+  }
+  // Prod
+  return "https://api.gonifty.ca/api";
 };
 
 export const API = axios.create({
   baseURL: getBaseURL(),
-   timeout: 30000,
+  timeout: 30000,
 });
 
 // ── Intercepteur requête ──────────────────────────────

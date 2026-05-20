@@ -10,7 +10,7 @@ export const handleMobilePayment = async (clientSecret: string) => {
     {
       method: "POST",
       headers: {
-        "Authorization": `Bearer pk_test_51T4saEL13XKhsSvAVRTgYoPiSsR9otLFgBzR9OfgobHqZbjKN7YyugeJRRVkSP2frn0HzvXpD5mzj2Zqmepeh3xq00Vh1cDmSW`,
+        "Authorization": `Bearer pk_test_51TXjIjQaWL0C4PvN4RI3bc64LFKfzevr70JI1LAUaSykVSFcSfzvJKccMg8azKrfDwf2Am2J0pqmBG6Wz9AAZyL400KCjjQiZs`,
         "Content-Type": "application/x-www-form-urlencoded",
       },
       body: `client_secret=${encodeURIComponent(clientSecret)}&payment_method=pm_card_visa`,
