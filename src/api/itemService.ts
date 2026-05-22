@@ -93,7 +93,7 @@ export const updateItem = async (id: number, data: any, images: any[]) => {
   // ── fetch natif comme createItem ──
   const token = await SecureStore.getItemAsync("token");
 
-  const response = await fetch(`http://192.168.0.118:8080/api/items/item/${id}/with-images`, {
+ const response = await fetch(`${BASE_URL}/api/items/item/${id}/with-images`, {
     method: "PUT",
     headers: {
       Authorization: `Bearer ${token}`,
