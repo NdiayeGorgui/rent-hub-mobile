@@ -88,11 +88,11 @@ export default function ItemDetails() {
     { id: 10, name: "Autres" },
   ];
 
-const isAuctionClosed =
-    item?.type === "AUCTION" && 
+  const isAuctionClosed =
+    item?.type === "AUCTION" &&
     (
-        item?.status === "CANCELLED_AUCTION" ||
-        auction?.status === "CLOSED"
+      item?.status === "CANCELLED_AUCTION" ||
+      auction?.status === "CLOSED"
     );
 
   // ── DatePickers ──────────────────────────────────────
@@ -366,18 +366,27 @@ const isAuctionClosed =
       }));
 
       editImages.forEach((img, i) => {
-        if (img.uri.startsWith("file://") || img.uri.startsWith("file:///")) {
+        // ← ajoute aussi "content://" pour Android en prod
+        if (
+          img.uri.startsWith("file://") ||
+          img.uri.startsWith("file:///") ||
+          img.uri.startsWith("content://")  // ← ajoute ça
+        ) {
           formData.append("images", { uri: img.uri, type: "image/jpeg", name: `image_${i}.jpg` } as any);
         }
       });
 
       const existingUrls = editImages
-        .filter(img => !img.uri.startsWith("file://") && !img.uri.startsWith("file:///"))
+        .filter(img =>
+          !img.uri.startsWith("file://") &&
+          !img.uri.startsWith("file:///") &&
+          !img.uri.startsWith("content://")  // ← ajoute ça
+        )
         .map(img => img.uri.replace(BASE_URL, ""));
       formData.append("existingImages", JSON.stringify(existingUrls));
 
       const token = await SecureStore.getItemAsync("token");
-     const response = await fetch(`${BASE_URL}/api/items/with-images`, {
+      const response = await fetch(`${BASE_URL}/api/items/item/${id}/with-images`, {
         method: "PUT",
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
@@ -406,25 +415,25 @@ const isAuctionClosed =
       reservePrice: Number(reservePrice) || Number(startPrice),
       endDate: endDateAuction,
     };
- showConfirm("Publier l'enchère", "⚠️ Le prix de départ est définitif.\n\nL'annulation entraînera des frais de 50$.\n\nContinuer ?", async () => {
-  try {
-    setAuctionLoading(true);
-    await createAuction(payload);
+    showConfirm("Publier l'enchère", "⚠️ Le prix de départ est définitif.\n\nL'annulation entraînera des frais de 50$.\n\nContinuer ?", async () => {
+      try {
+        setAuctionLoading(true);
+        await createAuction(payload);
 
-    // ← Recharge item + auction sans redirection
-    const updatedItem = await fetchItemDetails(Number(id));
-    setItem(updatedItem);
-    const auctionData = await getAuctionByItemId(Number(id));
-    if (auctionData) setAuction(auctionData);
+        // ← Recharge item + auction sans redirection
+        const updatedItem = await fetchItemDetails(Number(id));
+        setItem(updatedItem);
+        const auctionData = await getAuctionByItemId(Number(id));
+        if (auctionData) setAuction(auctionData);
 
-    setStartPrice(""); setReservePrice(""); setEndDateAuction("");
-    showAlert("Succès", "Enchère créée !");
-  } catch (error: any) {
-    showAlert("Erreur", error?.response?.data?.message || "Erreur création");
-  } finally {
-    setAuctionLoading(false);
-  }
-});
+        setStartPrice(""); setReservePrice(""); setEndDateAuction("");
+        showAlert("Succès", "Enchère créée !");
+      } catch (error: any) {
+        showAlert("Erreur", error?.response?.data?.message || "Erreur création");
+      } finally {
+        setAuctionLoading(false);
+      }
+    });
   };
 
   // ── Render ────────────────────────────────────────────
@@ -468,16 +477,16 @@ const isAuctionClosed =
         contentContainerStyle={{ paddingBottom: +150 }} // important 👇
         keyboardShouldPersistTaps="handled"
       >
-{isAuctionClosed && (
-  <View style={{
-    backgroundColor: "#fef2f2", borderRadius: 10, padding: 14,
-    marginBottom: 10, borderWidth: 1, borderColor: "#fca5a5"
-  }}>
-    <Text style={{ color: "#dc2626", fontWeight: "600", textAlign: "center" }}>
-      {item?.status === "CANCELLED_AUCTION" ? "❌ Enchère annulée" : "⛔ Enchère terminée"}
-    </Text>
-  </View>
-)}
+        {isAuctionClosed && (
+          <View style={{
+            backgroundColor: "#fef2f2", borderRadius: 10, padding: 14,
+            marginBottom: 10, borderWidth: 1, borderColor: "#fca5a5"
+          }}>
+            <Text style={{ color: "#dc2626", fontWeight: "600", textAlign: "center" }}>
+              {item?.status === "CANCELLED_AUCTION" ? "❌ Enchère annulée" : "⛔ Enchère terminée"}
+            </Text>
+          </View>
+        )}
 
         {/* ── Management menu ── */}
         {isOwner && (
@@ -642,11 +651,11 @@ const isAuctionClosed =
         </Link>
         <Text>@{item.publisher?.username}</Text>
         <Text>{item.publisher?.city}</Text>
-         <Text style={styles.rating}>
-                            {item.publisher?.averageRating
-                              ? `${Number(item.publisher.averageRating).toFixed(1)} ⭐ (${item.publisher.reviewsCount ?? 0} avis)`
-                              : "Aucune note"}
-                          </Text>
+        <Text style={styles.rating}>
+          {item.publisher?.averageRating
+            ? `${Number(item.publisher.averageRating).toFixed(1)} ⭐ (${item.publisher.reviewsCount ?? 0} avis)`
+            : "Aucune note"}
+        </Text>
         {item.publisher?.badge && <Text>🏅 Badge : {item.publisher.badge}</Text>}
 
         <Text style={styles.section}>⭐ Avis sur ce propriétaire ({userReviews.length})</Text>
@@ -842,7 +851,7 @@ const styles = StyleSheet.create({
   imageButton: { backgroundColor: "#16a34a", padding: 12, borderRadius: 8, alignItems: "center", marginTop: 10 },
   statsContainer: { backgroundColor: "#fff", borderRadius: 12, padding: 15, marginTop: 10, overflow: "hidden" },
   deactivateButton: { backgroundColor: "#dc2626", padding: 12, borderRadius: 8, marginTop: 15 },
-   rating: {
+  rating: {
     color: "#374151",
     marginTop: 4,
   },

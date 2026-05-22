@@ -13,7 +13,9 @@ export default function RootLayout() {
             <Stack.Screen name="(admin)" options={{ headerShown: false }} />
             <Stack.Screen name="(auth)" options={{ headerShown: false }} />
             <Stack.Screen name="(auth)/login" options={{ title: "Connexion" }} />
+            <Stack.Screen name="(auth)/forgot-password" options={{ title: "Mot de passe oublié" }} />
             <Stack.Screen name="(auth)/register" options={{ title: "Inscription" }} />
+            <Stack.Screen name="(auth)/reset-password" options={{ title: "Réinitialisation" }} />
             <Stack.Screen name="(admin)/admin-faq" options={{ title: "Gestion FAQ" }} />
             <Stack.Screen name="(admin)/dashboard" options={{ title: "Dashboard" }} />
             <Stack.Screen name="(users)/rentals" options={{ title: "Locations" }} />

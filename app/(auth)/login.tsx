@@ -24,9 +24,7 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const [showForgot, setShowForgot] = useState(false);
-  const [forgotEmail, setForgotEmail] = useState("");
-  const [forgotLoading, setForgotLoading] = useState(false);
+
 
   const { login } = useAuth();
   const insets = useSafeAreaInsets();
@@ -66,188 +64,135 @@ export default function Login() {
     }
   };
 
-  const handleForgotPassword = async () => {
-    if (!forgotEmail) {
-      showAlert("Erreur", "Veuillez entrer votre email");
-      return;
-    }
 
-    try {
-      setForgotLoading(true);
-
-      await forgotPassword(forgotEmail);
-
-      showAlert(
-        "Email envoyé",
-        "Si cet email existe, vous recevrez un token de réinitialisation."
-      );
-
-      setShowForgot(false);
-      router.push("/(auth)/reset-password");
-
-    } catch (error: any) {
-      console.log("FORGOT ERROR:", error?.response || error);
-      showAlert("Erreur", "Une erreur est survenue");
-    } finally {
-      setForgotLoading(false);
-    }
-  };
 
   return (
-   
-  <SafeAreaView style={{ flex: 1 }}>
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={20}
-    >
-      <ScrollView
-        contentContainerStyle={{
-          flexGrow: 1,
-          justifyContent: "center",
-          paddingHorizontal: 30,
-          paddingBottom: insets.bottom + 20,
-        }}
-        keyboardShouldPersistTaps="handled"
+
+    <SafeAreaView style={{ flex: 1 }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={20}
       >
-        <Text style={styles.logo}>🏠 Gonifty</Text>
-        <Text style={styles.subtitle}>Connexion</Text>
-
-        <TextInput
-          placeholder="Email"
-          style={styles.input}
-          value={email}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          onChangeText={setEmail}
-        />
-
-        <TextInput
-          placeholder="Mot de passe"
-          secureTextEntry
-          style={styles.input}
-          value={password}
-          onChangeText={setPassword}
-        />
-
-        <TouchableOpacity
-          style={styles.button}
-          onPress={handleLogin}
-          disabled={loading}
+        <ScrollView
+          contentContainerStyle={{
+            flexGrow: 1,
+            justifyContent: "center",
+            paddingHorizontal: 30,
+            paddingBottom: insets.bottom + 20,
+          }}
+          keyboardShouldPersistTaps="handled"
         >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Se connecter</Text>
-          )}
-        </TouchableOpacity>
+          <Text style={styles.logo}>🏠 Gonifty</Text>
+          <Text style={styles.subtitle}>Connexion</Text>
 
-        {/* Mot de passe oublié */}
-        <TouchableOpacity onPress={() => setShowForgot(!showForgot)}>
-          <Text style={styles.link}>Mot de passe oublié ?</Text>
-        </TouchableOpacity>
+          <TextInput
+            placeholder="Email"
+            style={styles.input}
+            value={email}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            onChangeText={setEmail}
+          />
 
-        {showForgot && (
-          <View style={styles.forgotContainer}>
-            <Text style={styles.forgotTitle}>
-              Réinitialiser le mot de passe
-            </Text>
+          <TextInput
+            placeholder="Mot de passe"
+            secureTextEntry
+            style={styles.input}
+            value={password}
+            onChangeText={setPassword}
+          />
 
-            <TextInput
-              placeholder="Votre email"
-              style={styles.input}
-              value={forgotEmail}
-              autoCapitalize="none"
-              keyboardType="email-address"
-              onChangeText={setForgotEmail}
-            />
+          <TouchableOpacity
+            style={styles.button}
+            onPress={handleLogin}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.buttonText}>Se connecter</Text>
+            )}
+          </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.forgotButton}
-              onPress={handleForgotPassword}
-              disabled={forgotLoading}
-            >
-              {forgotLoading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.buttonText}>Envoyer le token</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        )}
+          {/* Mot de passe oublié */}
 
-        <TouchableOpacity onPress={() => router.push("/(auth)/register")}>
-          <Text style={styles.link}>Créer un compte</Text>
-        </TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push("/(auth)/forgot-password")}>
+            <Text style={styles.link}>Mot de passe oublié ?</Text>
+          </TouchableOpacity>
 
-      </ScrollView>
-    </KeyboardAvoidingView>
-  </SafeAreaView>
-);
+          <TouchableOpacity onPress={() => router.push("/(auth)/register")}>
+            <Text style={styles.link}>Créer un compte</Text>
+          </TouchableOpacity>
+
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: "#f4f6f9",
-        justifyContent: "center",
-        paddingHorizontal: 30,
-    },
-    logo: {
-        fontSize: 32,
-        fontWeight: "bold",
-        textAlign: "center",
-        marginBottom: 10,
-    },
-    subtitle: {
-        textAlign: "center",
-        marginBottom: 30,
-        color: "#555",
-    },
-    input: {
-        backgroundColor: "#fff",
-        padding: 15,
-        borderRadius: 12,
-        marginBottom: 15,
-        fontSize: 16,
-        elevation: 2,
-    },
-    button: {
-        backgroundColor: "#2563eb",
-        padding: 15,
-        borderRadius: 12,
-        alignItems: "center",
-        marginBottom: 15,
-    },
-    buttonText: {
-        color: "#fff",
-        fontWeight: "bold",
-        fontSize: 16,
-    },
-    link: {
-        textAlign: "center",
-        color: "#2563eb",
-        fontWeight: "600",
-    },
-    forgotContainer: {
+  container: {
+    flex: 1,
+    backgroundColor: "#f4f6f9",
+    justifyContent: "center",
+    paddingHorizontal: 30,
+  },
+  logo: {
+    fontSize: 32,
+    fontWeight: "bold",
+    textAlign: "center",
+    marginBottom: 10,
+  },
+  subtitle: {
+    textAlign: "center",
+    marginBottom: 30,
+    color: "#555",
+  },
+  input: {
+    backgroundColor: "#fff",
+    padding: 15,
+    borderRadius: 12,
+    marginBottom: 15,
+    fontSize: 16,
+    elevation: 2,
+  },
+  button: {
+    backgroundColor: "#2563eb",
+    padding: 15,
+    borderRadius: 12,
+    alignItems: "center",
+    marginBottom: 15,
+  },
+  buttonText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
+  link: {
+    textAlign: "center",
+    color: "#2563eb",
+    fontWeight: "600",
+  },
+  forgotContainer: {
     backgroundColor: "#fff",
     padding: 20,
     borderRadius: 12,
     marginTop: 10,
     marginBottom: 10,
     elevation: 2,
-},
-forgotTitle: {
+  },
+  forgotTitle: {
     fontWeight: "bold",
     marginBottom: 10,
     color: "#333",
     textAlign: "center",
-},
-forgotButton: {
+  },
+  forgotButton: {
     backgroundColor: "#10b981",
     padding: 15,
     borderRadius: 12,
     alignItems: "center",
     marginTop: 5,
-},
+  },
 });
