@@ -31,12 +31,23 @@ export const fetchItemDetails = async (id: number) => {
 };*/
 
 export const createItem = async (formData: FormData) => {
-  const response = await API.post(
-    "/items/with-images",
-    formData,
-    // ← supprime complètement le headers ici
-  );
-  return response.data;
+  const token = await SecureStore.getItemAsync("token");
+  
+  const response = await fetch(`${BASE_URL}/api/items/with-images`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      // ← pas de Content-Type, fetch le gère automatiquement
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error?.message || "Erreur création");
+  }
+
+  return response.json();
 };
 
 // 🔥 Désactiver item

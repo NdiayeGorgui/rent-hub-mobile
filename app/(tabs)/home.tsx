@@ -20,7 +20,7 @@ import { BASE_URL } from "@/src/utils/baseURL";
 
 export default function Home() {
 
- 
+
 
   const categories = [
     { id: 1, name: "Électronique" },
@@ -143,7 +143,7 @@ export default function Home() {
     }
   };
   const getImage = (item: any) => {
-   
+
 
     // ✅ cas tableau
     if (item.imageUrls && item.imageUrls.length > 0) {
@@ -153,14 +153,8 @@ export default function Home() {
 
     // ✅ cas string
     if (item.imageUrl) {
-      let url = item.imageUrl;
-
-      // 🔥 FIX localhost → IP
-      if (url.includes("localhost")) {
-        url = url.replace("localhost", "192.168.0.118");
-      }
-
-      return url;
+      const url = item.imageUrl;
+      return url.startsWith("http") ? url : `${BASE_URL}${url}`;
     }
 
     return null;
@@ -457,14 +451,8 @@ export default function Home() {
 
             // cas 2 : imageUrl (searchItems)
             else if (item.imageUrl) {
-              let url = item.imageUrl;
-
-              // 🔥 corriger localhost pour mobile
-              if (url.includes("localhost")) {
-                url = url.replace("localhost", "192.168.0.118");
-              }
-
-              uri = url;
+              const url = item.imageUrl;
+              uri = url.startsWith("http") ? url : `${BASE_URL}${url}`;
             }
 
             return (

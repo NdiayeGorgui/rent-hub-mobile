@@ -19,6 +19,7 @@ import * as Location from "expo-location";
 import * as SecureStore from "expo-secure-store";
 import { KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, ActivityIndicator, } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { BASE_URL } from "@/src/utils/baseURL";
 
 export default function Create() {
   const router = useRouter();
@@ -140,7 +141,7 @@ if (!result.canceled) {
 
       console.log("🚀 Envoi fetch...");
 
-      const response = await fetch("http://192.168.0.118:8080/api/items/with-images", {
+      const response = await fetch(`${BASE_URL}/api/items/with-images`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
