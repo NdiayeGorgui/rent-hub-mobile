@@ -1,7 +1,15 @@
 import { useLocalSearchParams } from "expo-router"
 import {
-  View, TextInput, Pressable, Text, FlatList,
-  KeyboardAvoidingView, Platform, TouchableOpacity, Alert
+  View,
+  TextInput,
+  Pressable,
+  Text,
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
+  TouchableOpacity,
+  Alert,
+  Modal,
 } from "react-native"
 import { useEffect, useRef, useState, useContext } from "react"
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
@@ -32,6 +40,7 @@ export default function ChatScreen() {
   const [user, setUser] = useState<any>(null)
   const [pendingImage, setPendingImage] = useState<any>(null)
   const [sending, setSending] = useState(false)
+  const [fullscreenImage, setFullscreenImage] = useState<string | null>(null)
 
   const { loadUnreadMessages } = useContext(MessageContext)
   const flatListRef = useRef<FlatList>(null)
@@ -189,17 +198,26 @@ export default function ChatScreen() {
           {isMe ? "Vous" : otherUsername}
         </Text>
 
+
         {/* Image */}
         {item.imageUrl && (
-          <Image
-            source={{ uri: `${BASE_URL}${item.imageUrl}` }}
-            style={{
-              width: 200, aspectRatio: 1,
-              borderRadius: 8,
-              marginBottom: item.content ? 6 : 0,
-            }}
-            resizeMode="contain"
-          />
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={() =>
+              setFullscreenImage(`${BASE_URL}${item.imageUrl}`)
+            }
+          >
+            <Image
+              source={{ uri: `${BASE_URL}${item.imageUrl}` }}
+              style={{
+                width: 200,
+                aspectRatio: 1,
+                borderRadius: 8,
+                marginBottom: item.content ? 6 : 0,
+              }}
+              resizeMode="cover"
+            />
+          </TouchableOpacity>
         )}
 
         {/* Texte */}
@@ -314,6 +332,55 @@ export default function ChatScreen() {
           </View>
         </View>
       </KeyboardAvoidingView>
+      {/* Fullscreen image viewer */}
+      <Modal
+        visible={!!fullscreenImage}
+        transparent={true}
+        animationType="fade"
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.95)",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+
+          {/* Fermer */}
+          <TouchableOpacity
+            onPress={() => setFullscreenImage(null)}
+            style={{
+              position: "absolute",
+              top: 60,
+              right: 25,
+              zIndex: 10,
+            }}
+          >
+            <Text
+              style={{
+                color: "#fff",
+                fontSize: 34,
+                fontWeight: "bold",
+              }}
+            >
+              ×
+            </Text>
+          </TouchableOpacity>
+
+          {/* Image */}
+          {fullscreenImage && (
+            <Image
+              source={{ uri: fullscreenImage }}
+              style={{
+                width: "100%",
+                height: "80%",
+              }}
+              resizeMode="contain"
+            />
+          )}
+        </View>
+      </Modal>
     </SafeAreaView>
   )
 }
