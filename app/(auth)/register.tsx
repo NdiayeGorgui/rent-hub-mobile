@@ -18,6 +18,7 @@ import {
 } from "react-native";
 
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import PasswordInput from "@/components/PasswordInput";
 
 export default function Register() {
   const [loading, setLoading] = useState(false);
@@ -98,19 +99,38 @@ export default function Register() {
           }}
           keyboardShouldPersistTaps="handled"
         >
-           <Text style={styles.logo}>🏠 Gonifty</Text>
+          <Text style={styles.logo}>🏠 Gonifty</Text>
           <Text style={styles.logo}>Créer un compte</Text>
 
-          {fields.map((field) => (
-            <TextInput
-              key={field.key}
-              placeholder={field.placeholder}
-              secureTextEntry={field.key === "password"}
-              style={styles.input}
-              value={(form as any)[field.key]}
-              onChangeText={(text) => handleChange(field.key, text)}
-            />
-          ))}
+          {fields.map((field) => {
+
+            if (field.key === "password") {
+              return (
+                <PasswordInput
+                  key={field.key}
+                  placeholder={field.placeholder}
+                  value={form.password}
+                  onChangeText={(text) => handleChange(field.key, text)}
+                />
+              );
+            }
+
+            return (
+              <TextInput
+                key={field.key}
+                placeholder={field.placeholder}
+                style={styles.input}
+                value={(form as any)[field.key]}
+                onChangeText={(text) => handleChange(field.key, text)}
+                autoCapitalize="none"
+                keyboardType={
+                  field.key === "email"
+                    ? "email-address"
+                    : "default"
+                }
+              />
+            );
+          })}
 
           <TouchableOpacity
             style={styles.button}

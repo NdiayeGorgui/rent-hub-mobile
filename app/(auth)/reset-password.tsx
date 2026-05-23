@@ -1,11 +1,14 @@
 import {
   View, Text, TextInput, TouchableOpacity,
-  StyleSheet, ActivityIndicator, Alert, Platform,
+  StyleSheet, ActivityIndicator, Alert, Platform,KeyboardAvoidingView,ScrollView,
 } from "react-native";
 import { useState, useEffect } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import { resetPassword } from "../../src/api/authService";
 import * as Linking from "expo-linking";
+import PasswordInput from "@/components/PasswordInput";
+
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function ResetPassword() {
   const [token, setToken] = useState("");
@@ -13,6 +16,7 @@ export default function ResetPassword() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const insets = useSafeAreaInsets();
 
   // ← Récupère le token depuis le deep link
   useEffect(() => {
@@ -73,57 +77,51 @@ export default function ResetPassword() {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.logo}>🏠 Gonifty</Text>
-      <Text style={styles.subtitle}>Nouveau mot de passe</Text>
-
-      {/* Token — masqué si vient du lien */}
-      {tokenFromLink ? (
-        <View style={styles.tokenSuccess}>
-          <Text style={styles.tokenSuccessText}>
-            ✅ Token récupéré automatiquement
-          </Text>
-        </View>
-      ) : (
-        <TextInput
-          placeholder="Token reçu par email"
-          style={styles.input}
-          value={token}
-          onChangeText={setToken}
-          autoCapitalize="none"
-        />
-      )}
-
-      <TextInput
-        placeholder="Nouveau mot de passe"
-        secureTextEntry
-        style={styles.input}
-        value={newPassword}
-        onChangeText={setNewPassword}
-      />
-      <TextInput
-        placeholder="Confirmer le mot de passe"
-        secureTextEntry
-        style={styles.input}
-        value={confirmPassword}
-        onChangeText={setConfirmPassword}
-      />
-
-      <TouchableOpacity
-        style={styles.button}
-        onPress={handleReset}
-        disabled={loading}
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#f4f6f9" }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        {loading
-          ? <ActivityIndicator color="#fff" />
-          : <Text style={styles.buttonText}>Réinitialiser</Text>
-        }
-      </TouchableOpacity>
+        <ScrollView
+          contentContainerStyle={{
+            flexGrow: 1,
+            justifyContent: "center",
+            paddingHorizontal: 30,
+            paddingBottom: insets.bottom + 20,
+          }}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Text style={styles.logo}>🏠 Gonifty</Text>
+          <Text style={styles.subtitle}>Nouveau mot de passe</Text>
 
-      <TouchableOpacity onPress={() => router.back()}>
-        <Text style={styles.link}>Retour à la connexion</Text>
-      </TouchableOpacity>
-    </View>
+          {tokenFromLink ? (
+            <View style={styles.tokenSuccess}>
+              <Text style={styles.tokenSuccessText}>✅ Token récupéré automatiquement</Text>
+            </View>
+          ) : (
+            <TextInput
+              placeholder="Token reçu par email"
+              style={styles.input}
+              value={token}
+              onChangeText={setToken}
+              autoCapitalize="none"
+            />
+          )}
+
+          <PasswordInput placeholder="Nouveau mot de passe" value={newPassword} onChangeText={setNewPassword} />
+          <PasswordInput placeholder="Confirmer le mot de passe" value={confirmPassword} onChangeText={setConfirmPassword} />
+
+          <TouchableOpacity style={styles.button} onPress={handleReset} disabled={loading}>
+            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Réinitialiser</Text>}
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={() => router.back()}>
+            <Text style={styles.link}>Retour à la connexion</Text>
+          </TouchableOpacity>
+
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 

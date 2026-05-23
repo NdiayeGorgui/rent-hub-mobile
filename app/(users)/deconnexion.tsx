@@ -22,6 +22,7 @@ export default function DeconnexionScreen() {
             try {
               setLoading(true);
               await logout();
+              router.dismissAll(); 
               router.replace("/(auth)/login");
             } catch (error) {
               Alert.alert("Erreur", "Impossible de se déconnecter");

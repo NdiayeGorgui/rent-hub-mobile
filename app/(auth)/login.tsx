@@ -18,6 +18,7 @@ import {
 } from "react-native";
 
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import PasswordInput from "@/components/PasswordInput";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -95,13 +96,7 @@ export default function Login() {
             onChangeText={setEmail}
           />
 
-          <TextInput
-            placeholder="Mot de passe"
-            secureTextEntry
-            style={styles.input}
-            value={password}
-            onChangeText={setPassword}
-          />
+          <PasswordInput value={password} onChangeText={setPassword} />
 
           <TouchableOpacity
             style={styles.button}
