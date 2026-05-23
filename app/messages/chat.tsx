@@ -10,6 +10,8 @@ import {
   TouchableOpacity,
   Alert,
   Modal,
+  PanResponder,
+  Animated,
 } from "react-native"
 import { useEffect, useRef, useState, useContext } from "react"
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
@@ -41,9 +43,41 @@ export default function ChatScreen() {
   const [pendingImage, setPendingImage] = useState<any>(null)
   const [sending, setSending] = useState(false)
   const [fullscreenImage, setFullscreenImage] = useState<string | null>(null)
+  const translateY = useRef(new Animated.Value(0)).current
 
   const { loadUnreadMessages } = useContext(MessageContext)
   const flatListRef = useRef<FlatList>(null)
+
+  const panResponder = useRef(
+  PanResponder.create({
+    onMoveShouldSetPanResponder: (_, gestureState) => {
+      return Math.abs(gestureState.dy) > 10
+    },
+
+    onPanResponderMove: (_, gestureState) => {
+      if (gestureState.dy > 0) {
+        translateY.setValue(gestureState.dy)
+      }
+    },
+
+    onPanResponderRelease: (_, gestureState) => {
+
+      // swipe assez grand → fermer
+      if (gestureState.dy > 120) {
+        setFullscreenImage(null)
+
+        translateY.setValue(0)
+      } else {
+
+        // revenir au centre
+        Animated.spring(translateY, {
+          toValue: 0,
+          useNativeDriver: true,
+        }).start()
+      }
+    },
+  })
+).current
 
   useEffect(() => { convIdRef.current = convId }, [convId])
 
@@ -369,16 +403,27 @@ export default function ChatScreen() {
           </TouchableOpacity>
 
           {/* Image */}
-          {fullscreenImage && (
-            <Image
-              source={{ uri: fullscreenImage }}
-              style={{
-                width: "100%",
-                height: "80%",
-              }}
-              resizeMode="contain"
-            />
-          )}
+         {fullscreenImage && (
+  <Animated.View
+    {...panResponder.panHandlers}
+    style={{
+      transform: [{ translateY }],
+      width: "100%",
+      height: "80%",
+      justifyContent: "center",
+      alignItems: "center",
+    }}
+  >
+    <Image
+      source={{ uri: fullscreenImage }}
+      style={{
+        width: "100%",
+        height: "100%",
+      }}
+      resizeMode="contain"
+    />
+  </Animated.View>
+)}
         </View>
       </Modal>
     </SafeAreaView>

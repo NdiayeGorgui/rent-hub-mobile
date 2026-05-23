@@ -22,6 +22,7 @@ import { handleMobilePayment } from "@/src/api/stripeMobile";
 import * as SecureStore from "expo-secure-store";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { KeyboardAvoidingView, Platform } from "react-native";
+import { ScrollView as HorizontalScroll, Dimensions } from "react-native";
 
 import { BASE_URL } from "@/src/utils/baseURL";
 
@@ -72,6 +73,9 @@ export default function ItemDetails() {
 
   const [showAllUserReviews, setShowAllUserReviews] = useState(false);
   const [showAllItemReviews, setShowAllItemReviews] = useState(false);
+
+  const { width } = Dimensions.get("window");
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
 
 
 
@@ -524,16 +528,78 @@ export default function ItemDetails() {
                   <Text style={{ color: "#fff", fontWeight: "bold" }}>Choisir des images</Text>
                 </Pressable>
 
-                <View style={{ flexDirection: "row", flexWrap: "wrap", marginTop: 10 }}>
-                  {editImages.map((img, index) => (
-                    <View key={index} style={{ position: "relative", marginRight: 8, marginBottom: 8 }}>
-                      <Image source={{ uri: img.uri }} style={{ width: 90, height: 90, borderRadius: 8 }} />
-                      <Pressable onPress={() => removeImage(index)}
-                        style={{ position: "absolute", top: -6, right: -6, backgroundColor: "rgba(0,0,0,0.7)", borderRadius: 12, width: 22, height: 22, justifyContent: "center", alignItems: "center" }}>
-                        <Text style={{ color: "#fff", fontSize: 14, fontWeight: "bold" }}>×</Text>
-                      </Pressable>
-                    </View>
-                  ))}
+                <View style={{ marginTop: 10 }}>
+                  {/* Carousel editImages */}
+                  {editImages.length > 0 && (
+                    <HorizontalScroll
+                      horizontal
+                      pagingEnabled
+                      showsHorizontalScrollIndicator={false}
+                      style={{ width: width - 60, marginBottom: 8 }}
+                    >
+                      {editImages.map((img, index) => (
+                        <View key={index} style={{
+                          width: width - 60,
+                          aspectRatio: 4 / 3,
+                          backgroundColor: "#f0f0f0",
+                          borderRadius: 12,
+                          position: "relative",
+                        }}>
+                          <Image
+                            source={{ uri: img.uri }}
+                            style={{ width: "100%", height: "100%", borderRadius: 12 }}
+                            resizeMode="contain"
+                          />
+                          {/* Croix suppression */}
+                          <Pressable
+                            onPress={() => removeImage(index)}
+                            style={{
+                              position: "absolute", top: 8, right: 8,
+                              backgroundColor: "rgba(0,0,0,0.7)",
+                              borderRadius: 14, width: 28, height: 28,
+                              justifyContent: "center", alignItems: "center",
+                            }}
+                          >
+                            <Text style={{ color: "#fff", fontSize: 16, fontWeight: "bold" }}>×</Text>
+                          </Pressable>
+                          {/* Numéro image */}
+                          <View style={{
+                            position: "absolute", bottom: 8, left: 8,
+                            backgroundColor: "rgba(0,0,0,0.5)",
+                            borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3,
+                          }}>
+                            <Text style={{ color: "#fff", fontSize: 11, fontWeight: "600" }}>
+                              {index + 1} / {editImages.length}
+                            </Text>
+                          </View>
+                        </View>
+                      ))}
+                    </HorizontalScroll>
+                  )}
+
+                  {/* Miniatures cliquables en bas */}
+                  <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                    {editImages.map((img, index) => (
+                      <View key={index} style={{ position: "relative" }}>
+                        <Image
+                          source={{ uri: img.uri }}
+                          style={{ width: 60, height: 60, borderRadius: 8, backgroundColor: "#f0f0f0" }}
+                          resizeMode="cover"
+                        />
+                        <Pressable
+                          onPress={() => removeImage(index)}
+                          style={{
+                            position: "absolute", top: -5, right: -5,
+                            backgroundColor: "rgba(220,38,38,0.9)",
+                            borderRadius: 10, width: 20, height: 20,
+                            justifyContent: "center", alignItems: "center",
+                          }}
+                        >
+                          <Text style={{ color: "#fff", fontSize: 12, fontWeight: "bold" }}>×</Text>
+                        </Pressable>
+                      </View>
+                    ))}
+                  </View>
                 </View>
 
                 <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
@@ -630,11 +696,53 @@ export default function ItemDetails() {
           </View>
         )}
 
-        {item.imageUrls?.length > 0
-          ? item.imageUrls.map((url: string, index: number) => (
-            <Image key={index} source={{ uri: `${BASE_URL}${url}` }} style={styles.image} resizeMode="contain" />
-          ))
-          : <Text>Aucune image</Text>}
+        {item.imageUrls?.length > 0 ? (
+          <View style={{ marginBottom: 10 }}>
+            <HorizontalScroll
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onScroll={(e) => {
+                const index = Math.round(e.nativeEvent.contentOffset.x / (width - 30));
+                setActiveImageIndex(index);
+              }}
+              scrollEventThrottle={16}
+              style={{ width: width - 30 }}
+            >
+              {item.imageUrls.map((url: string, index: number) => (
+                <View key={index} style={{
+                  width: width - 30,
+                  aspectRatio: 4 / 3,
+                  backgroundColor: "#f0f0f0",
+                  borderRadius: 12,
+                }}>
+                  <Image
+                    source={{ uri: `${BASE_URL}${url}` }}
+                    style={{ width: "100%", height: "100%", borderRadius: 12 }}
+                    resizeMode="contain"
+                  />
+                </View>
+              ))}
+            </HorizontalScroll>
+
+            {/* Dots */}
+            {item.imageUrls.length > 1 && (
+              <View style={{ flexDirection: "row", justifyContent: "center", marginTop: 8, gap: 6 }}>
+                {item.imageUrls.map((_: any, index: number) => (
+                  <View
+                    key={index}
+                    style={{
+                      width: activeImageIndex === index ? 18 : 6,
+                      height: 6,
+                      borderRadius: 3,
+                      backgroundColor: activeImageIndex === index ? "#2563eb" : "#d1d5db",
+                    }}
+                  />
+                ))}
+              </View>
+            )}
+          </View>
+        ) : <Text>Aucune image</Text>}
 
         {item.type === "RENTAL" && <Text style={styles.price}>{item.pricePerDay} $/jour</Text>}
         <Text style={styles.description}>{item.description}</Text>
