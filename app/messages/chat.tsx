@@ -47,6 +47,7 @@ export default function ChatScreen() {
 
   const { loadUnreadMessages } = useContext(MessageContext)
   const flatListRef = useRef<FlatList>(null)
+   const isAtBottomRef = useRef(true);
 
   const panResponder = useRef(
   PanResponder.create({
@@ -60,30 +61,29 @@ export default function ChatScreen() {
       }
     },
 
-    onPanResponderRelease: (_, gestureState) => {
-
-      // swipe assez grand → fermer
-      if (gestureState.dy > 120) {
-        setFullscreenImage(null)
-
-        translateY.setValue(0)
-      } else {
-
-        // revenir au centre
-        Animated.spring(translateY, {
-          toValue: 0,
-          useNativeDriver: true,
-        }).start()
-      }
-    },
+onPanResponderRelease: (_, gestureState) => {
+  if (gestureState.dy > 100) {
+    Animated.timing(translateY, {
+      toValue: 500,
+      duration: 200,
+      useNativeDriver: true,
+    }).start(() => {
+      setFullscreenImage(null);
+      translateY.setValue(0); // ← reset pour la prochaine ouverture
+    });
+  } else {
+    Animated.spring(translateY, {
+      toValue: 0,
+      useNativeDriver: true,
+    }).start();
+  }
+},
   })
 ).current
 
   useEffect(() => { convIdRef.current = convId }, [convId])
 
-  useEffect(() => {
-    flatListRef.current?.scrollToEnd({ animated: true })
-  }, [messages])
+ 
 
   // ── Init ─────────────────────────────────────────────
   useEffect(() => {
@@ -280,9 +280,21 @@ export default function ChatScreen() {
             keyExtractor={(item) => item.id.toString()}
             renderItem={renderItem}
             contentContainerStyle={{ padding: 15, paddingBottom: 10 }}
-            onContentSizeChange={() =>
-              flatListRef.current?.scrollToEnd({ animated: true })
-            }
+          
+
+// Ajoute dans FlatList :
+onScroll={(e) => {
+  const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
+  const distanceFromBottom = contentSize.height - contentOffset.y - layoutMeasurement.height;
+  isAtBottomRef.current = distanceFromBottom < 50;
+}}
+scrollEventThrottle={100}
+onContentSizeChange={() => {
+  if (isAtBottomRef.current) {
+    flatListRef.current?.scrollToEnd({ animated: true });
+  }
+}}
+            
             keyboardShouldPersistTaps="handled"
           />
 
@@ -367,65 +379,48 @@ export default function ChatScreen() {
         </View>
       </KeyboardAvoidingView>
       {/* Fullscreen image viewer */}
-      <Modal
-        visible={!!fullscreenImage}
-        transparent={true}
-        animationType="fade"
-      >
-        <View
-          style={{
-            flex: 1,
-            backgroundColor: "rgba(0,0,0,0.95)",
-            justifyContent: "center",
-            alignItems: "center",
-          }}
-        >
-
-          {/* Fermer */}
-          <TouchableOpacity
-            onPress={() => setFullscreenImage(null)}
-            style={{
-              position: "absolute",
-              top: 60,
-              right: 25,
-              zIndex: 10,
-            }}
-          >
-            <Text
-              style={{
-                color: "#fff",
-                fontSize: 34,
-                fontWeight: "bold",
-              }}
-            >
-              ×
-            </Text>
-          </TouchableOpacity>
-
-          {/* Image */}
-         {fullscreenImage && (
+// Remplace tout le Modal par :
+<Modal
+  visible={!!fullscreenImage}
+  transparent={true}
+  animationType="fade"
+  onRequestClose={() => setFullscreenImage(null)}
+>
   <Animated.View
-    {...panResponder.panHandlers}
     style={{
-      transform: [{ translateY }],
-      width: "100%",
-      height: "80%",
+      flex: 1,
+      backgroundColor: "rgba(0,0,0,0.95)",
       justifyContent: "center",
       alignItems: "center",
+      transform: [{ translateY }],
     }}
+    {...panResponder.panHandlers}
   >
-    <Image
-      source={{ uri: fullscreenImage }}
-      style={{
-        width: "100%",
-        height: "100%",
+    {/* Fermer */}
+    <TouchableOpacity
+      onPress={() => {
+        translateY.setValue(0);
+        setFullscreenImage(null);
       }}
-      resizeMode="contain"
-    />
+      style={{ position: "absolute", top: 60, right: 25, zIndex: 10 }}
+    >
+      <Text style={{ color: "#fff", fontSize: 34, fontWeight: "bold" }}>×</Text>
+    </TouchableOpacity>
+
+    {fullscreenImage && (
+      <Image
+        source={{ uri: fullscreenImage }}
+        style={{ width: "100%", height: "80%" }}
+        resizeMode="contain"
+      />
+    )}
+
+    {/* Indicateur swipe */}
+    <Text style={{ color: "#ffffff80", fontSize: 12, position: "absolute", bottom: 40 }}>
+      ↓ Glissez vers le bas pour fermer
+    </Text>
   </Animated.View>
-)}
-        </View>
-      </Modal>
+</Modal>
     </SafeAreaView>
   )
 }
