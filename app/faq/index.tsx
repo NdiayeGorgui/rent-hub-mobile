@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { View, Text, TextInput, FlatList, Pressable, StyleSheet } from "react-native";
 import { getAllFaqs } from "@/src/api/faqService";
 import { FaqItem } from "@/components/faq/FaqItem";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function FaqScreen() {
   const [faqs, setFaqs] = useState<any[]>([]);
@@ -10,6 +11,7 @@ export default function FaqScreen() {
   const [search, setSearch] = useState("");
   const [selectedTheme, setSelectedTheme] = useState("Tous");
   const [openId, setOpenId] = useState<number | null>(null);
+  const insets = useSafeAreaInsets();
 
   const themes = ["Tous", "Paiement", "Location", "Enchères", "Compte", "Sécurité"];
 
@@ -54,6 +56,7 @@ export default function FaqScreen() {
         renderItem={({ item }) => (
           <FaqItem item={item} isOpen={openId === item.id} onToggle={() => setOpenId(openId === item.id ? null : item.id)} />
         )}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 30 }}
       />
     </View>
   );
