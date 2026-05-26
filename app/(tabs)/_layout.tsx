@@ -10,8 +10,9 @@ function AdminMenu() {
   const [visible, setVisible] = useState(false);
 
   const menuItems = [
-    { label: "FAQ",           icon: "help-circle-outline",  route: "/admin-faq" },
-    { label: "Tableau de bord",     icon: "speedometer-outline",  route: "/dashboard" },
+    { label: "FAQ", icon: "help-circle-outline",  route: "/admin-faq" },
+    { label: "Infolettre", icon: "help-circle-outline",  route: "/admin-newsletter" },
+    { label: "Tableau de bord", icon: "speedometer-outline",  route: "/dashboard" },
     { label: "Déconnexion", icon: "log-out-outline", route: "/deconnexion" }
   ];
 
