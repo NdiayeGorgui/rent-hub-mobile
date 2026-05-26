@@ -61,7 +61,9 @@ function UserMenu() {
     { label: "Centre d'aides", icon: "alert-circle-outline", route: "/faq" },
     { label: "Locations", icon: "calendar-outline", route: "/rentals" },
     { label: "Enchères", icon: "flame-outline", route: "/auctions" },
-    { label: "Litiges", icon: "alert-circle-outline", route: "/disputes" },
+    { label: "Contact", icon: "mail-outline", route: "/contact" },
+    { label: "Infolettre", icon: "newspaper-outline", route: "/newsletter" },
+    { label: "Régie publicitaire", icon: "megaphone-outline", route: "/publicite" },
     { label: "Déconnexion", icon: "log-out-outline", route: "/deconnexion" }
   ];
 
@@ -193,6 +195,36 @@ export default function TabsLayout() {
             <Ionicons name="alert-circle-outline" size={size} color={color} />
           ),
           href: !isAdmin ? "/disputes" : null,
+        }}
+      />
+      <Tabs.Screen
+        name="contact"
+        options={{
+          title: "Contact",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="mail-outline" size={size} color={color} />
+          ),
+          href: !isAdmin ? "/contact" : null,
+        }}
+      />
+      <Tabs.Screen
+        name="newsletter"
+        options={{
+          title: "Infolettre",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="newspaper-outline" size={size} color={color} />
+          ),
+          href: !isAdmin ? "/newsletter" : null,
+        }}
+      />
+      <Tabs.Screen
+        name="publicite"
+        options={{
+          title: "Régie publicitaire",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="megaphone-outline" size={size} color={color} />
+          ),
+          href: !isAdmin ? "/publicite" : null,
         }}
       />
       <Tabs.Screen

@@ -42,3 +42,23 @@ export const sendMessageWithImage = async (formData: FormData) => {
   const res = await API.post("/messages/send-with-image", formData);
   return res.data;
 };
+
+export const sendContact = async (data: {
+  firstName: string;
+  lastName: string;
+  email: string;
+  subject: string;
+  message: string;
+}) => {
+  const res = await API.post("/messages/contact", data);
+  return res.data;
+};
+
+export const subscribeNewsletter = (email: string) =>
+  API.post("/newsletter/subscribe", { email });
+
+export const getSubscribers = () =>
+  API.get("/newsletter/subscribers");
+
+export const sendNewsletter = (subject: string, body: string) =>
+  API.post("/newsletter/send", { subject, body });
