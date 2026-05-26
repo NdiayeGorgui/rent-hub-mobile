@@ -17,9 +17,8 @@ export default function RootLayout() {
             <Stack.Screen name="(auth)/register" options={{ title: "Inscription" }} />
             <Stack.Screen name="(auth)/reset-password" options={{ title: "Réinitialisation" }} />
             <Stack.Screen name="(admin)/admin-faq" options={{ title: "Gestion FAQ" }} />
+            <Stack.Screen name="(admin)/admin-newsletter" options={{ title: "Infolettre" }} />
             <Stack.Screen name="(admin)/dashboard" options={{ title: "Dashboard" }} />
-            <Stack.Screen name="(users)/rentals" options={{ title: "Locations" }} />
-            <Stack.Screen name="(users)/auctions" options={{ title: "Enchères" }} />
             <Stack.Screen name="(users)/disputes" options={{ title: "Litiges" }} />
             <Stack.Screen name="(users)/contact" options={{ title: "Contact" }} />
             <Stack.Screen name="(users)/newsletter" options={{ title: "Infolettre" }} />

@@ -60,8 +60,6 @@ function UserMenu() {
 
   const menuItems = [
     { label: "Centre d'aides", icon: "alert-circle-outline", route: "/faq" },
-    { label: "Locations", icon: "calendar-outline", route: "/rentals" },
-    { label: "Enchères", icon: "flame-outline", route: "/auctions" },
     { label: "Contact", icon: "mail-outline", route: "/contact" },
     { label: "Infolettre", icon: "newspaper-outline", route: "/newsletter" },
     { label: "Régie publicitaire", icon: "megaphone-outline", route: "/publicite" },
