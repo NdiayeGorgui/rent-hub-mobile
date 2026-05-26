@@ -63,6 +63,7 @@ function UserMenu() {
     { label: "Contact", icon: "mail-outline", route: "/contact" },
     { label: "Infolettre", icon: "newspaper-outline", route: "/newsletter" },
     { label: "Régie publicitaire", icon: "megaphone-outline", route: "/publicite" },
+    { label: "Profil", icon: "person-outline", route: "/profile" },
     { label: "Déconnexion", icon: "log-out-outline", route: "/deconnexion" }
   ];
 

@@ -23,6 +23,7 @@ export default function RootLayout() {
             <Stack.Screen name="(users)/contact" options={{ title: "Contact" }} />
             <Stack.Screen name="(users)/newsletter" options={{ title: "Infolettre" }} />
             <Stack.Screen name="(users)/publicite" options={{ title: "Régie publicitaire" }} />
+            <Stack.Screen name="(users)/profile" options={{ title: "Profil" }} />
             <Stack.Screen name="(users)/deconnexion" options={{ title: "Déconnexion" }} />
             <Stack.Screen name="item/[id]" options={{ title: "Détails" }} />
             <Stack.Screen name="my-items/[id]" options={{ title: "Mon item" }} />
