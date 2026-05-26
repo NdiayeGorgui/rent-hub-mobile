@@ -60,6 +60,7 @@ function UserMenu() {
 
   const menuItems = [
     { label: "Centre d'aides", icon: "alert-circle-outline", route: "/faq" },
+    { label: "Litige", icon: "shield-alert-outline", route: "/dispute" },
     { label: "Contact", icon: "mail-outline", route: "/contact" },
     { label: "Infolettre", icon: "newspaper-outline", route: "/newsletter" },
     { label: "Régie publicitaire", icon: "megaphone-outline", route: "/publicite" },
