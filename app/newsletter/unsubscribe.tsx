@@ -33,7 +33,7 @@ export default function NewsletterUnsubscribeScreen() {
       try {
 
         await API.get(
-          `/news-letter/unsubscribe?email=${encodeURIComponent(email)}`
+          `/newsletter/unsubscribe?email=${encodeURIComponent(email)}`
         );
 
         setSuccess(true);
