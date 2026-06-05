@@ -301,50 +301,7 @@ export default function Profile() {
       )}
 
       {/* ── Items publiés ── */}
-      {!isAdmin && (
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Items publiés</Text>
-          {publishedItemsDetails.length === 0 ? <Text>Aucun item publié</Text> : (
-            publishedItemsDetails.map((item, index) => (
-              <View key={`published-${item.id}-${index}`} style={styles.itemRow}>
-                <Text style={styles.itemTitle}>#{item.id} - {item.title}</Text>
-                {item.type === "AUCTION"
-                  ? <Text style={styles.itemPrice}>🔥 {item.currentPrice ?? "—"} $</Text>
-                  : <Text style={styles.itemPrice}>{item.pricePerDay} $/j</Text>}
-                <Text style={styles.itemRating}>⭐ {item.averageRating.toFixed(2) ?? 0}</Text>
-                <Text style={styles.itemDate}>
-                  {item.type === "AUCTION"
-                    ? `${formatDate(item.createdAt)} → ${formatDate(item.auctionEndDate)}`
-                    : formatDate(item.createdAt)}
-                </Text>
-              </View>
-            ))
-          )}
-        </View>
-      )}
-
-      {/* ── Items loués ── */}
-      {!isAdmin && (
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Items loués</Text>
-          {rentedItemsDetails.length === 0 ? <Text>Aucun item loué</Text> : (
-            rentedItemsDetails.map((item, index) => (
-              <View key={`rented-${item.id}-${index}`} style={styles.itemRow}>
-                <Text style={styles.itemTitle}>#{item.id} - {item.title}</Text>
-                {item.type === "AUCTION"
-                  ? <Text style={styles.itemPrice}>🔥 {item.currentPrice ?? "—"} $</Text>
-                  : <Text style={styles.itemPrice}>{item.pricePerDay} $/j</Text>}
-                <Text style={styles.itemRating}>⭐ {item.averageRating ? item.averageRating.toFixed(2) : "0.00"}</Text>
-                <Text style={styles.itemDate}>
-                  {item.type === "AUCTION"
-                    ? `${formatDate(item.createdAt)} → ${formatDate(item.auctionEndDate)}`
-                    : `${formatDate(item.startDate)} → ${formatDate(item.endDate)}`}
-                </Text>
-              </View>
-            ))
-          )}
-        </View>
-      )}
+     
 
       {/* ── Paiements ── */}
       {!isAdmin && (

@@ -15,12 +15,12 @@ import {
   RentalResponse,
 } from "@/src/api/rentalService";
 
-import { hasReviewedRental } from "@/src/api/reviewService";
-import { fetchItemDetails } from "@/src/api/itemService";
-import { fetchUserProfile } from "@/src/api/authService";
+import { hasReviewedRentalBatch } from "@/src/api/reviewService";
 
 import { useRouter, useFocusEffect, Link } from "expo-router";
-import { RefreshControl } from "react-native";
+import { RefreshControl, Image } from "react-native";
+import { BASE_URL } from "@/src/utils/baseURL";
+
 
 export default function RentalsScreen() {
   const router = useRouter();
@@ -28,8 +28,6 @@ export default function RentalsScreen() {
   const [mode, setMode] = useState<"renter" | "owner">("renter");
   const [rentals, setRentals] = useState<RentalResponse[]>([]);
 
-  const [itemsMap, setItemsMap] = useState<Record<number, any>>({});
-  const [usersMap, setUsersMap] = useState<Record<string, any>>({});
   const [reviewedMap, setReviewedMap] = useState<Record<number, boolean>>({});
 
   const [loading, setLoading] = useState(false);
@@ -61,65 +59,18 @@ export default function RentalsScreen() {
         setRefreshing(false);
       };
 
-      // =========================
-      // LOAD ITEMS
-      // =========================
 
-      const uniqueItemIds = [...new Set(filtered.map((r) => r.itemId))];
 
-      const itemsResults = await Promise.all(
-        uniqueItemIds.map(async (itemId) => {
-          try {
-            const item = await fetchItemDetails(itemId);
-            return [itemId, item];
-          } catch {
-            return [itemId, null];
-          }
-        })
-      );
+      try {
+        const reviewMap = await hasReviewedRentalBatch(
+          filtered.map((r) => r.id)
+        );
 
-      const itemsObject = Object.fromEntries(itemsResults);
-      setItemsMap(itemsObject);
-
-      // =========================
-      // LOAD USERS (renters)
-      // =========================
-
-      const renterIds = [
-        ...new Set(filtered.map((r) => r.renterId).filter(Boolean)),
-      ];
-
-      const usersResults = await Promise.all(
-        renterIds.map(async (userId) => {
-          try {
-            const user = await fetchUserProfile(userId);
-            return [userId, user];
-          } catch {
-            return [userId, null];
-          }
-        })
-      );
-
-      const usersObject = Object.fromEntries(usersResults);
-      setUsersMap(usersObject);
-
-      // =========================
-      // LOAD REVIEWS
-      // =========================
-
-      const reviewsResults = await Promise.all(
-        filtered.map(async (rental) => {
-          try {
-            const already = await hasReviewedRental(rental.id);
-            return [rental.id, already];
-          } catch {
-            return [rental.id, false];
-          }
-        })
-      );
-
-      const reviewsObject = Object.fromEntries(reviewsResults);
-      setReviewedMap(reviewsObject);
+        setReviewedMap(reviewMap);
+      } catch (error) {
+        console.log("Review batch error", error);
+        setReviewedMap({});
+      }
     } catch (e) {
       console.log("❌ Error loading rentals", e);
     }
@@ -227,11 +178,11 @@ export default function RentalsScreen() {
   // =========================
 
   const renderItem = ({ item }: { item: RentalResponse }) => {
-    const itemDetails = itemsMap[item.itemId];
-    const renter = usersMap[item.renterId];
+
 
     return (
       <View
+
         style={{
           backgroundColor: "#fff",
           padding: 16,
@@ -242,32 +193,41 @@ export default function RentalsScreen() {
           shadowRadius: 4,
         }}
       >
-        <Text style={{ fontWeight: "bold", fontSize: 16 }}>
-          #{item.itemId} - {itemDetails?.title ?? "Loading..."}
-        </Text>
+        {item.itemImageUrls?.[0] && (
+          <Image
+            source={{ uri: `${BASE_URL}${item.itemImageUrls[0]}` }}
+            style={{
+              width: "100%",
+              height: 180,
+              borderRadius: 12,
+              marginBottom: 12,
+            }}
+            resizeMode="contain"
+          />
+        )}
 
         <Text style={{ color: "#6b7280", marginBottom: 6 }}>
-       {mode === "owner" ? (
-  <Link
-    href={{
-      pathname: "/user/[id]",
-      params: { id: renter?.userId },
-    }}
-    style={{ color: "#2563eb" }}
-  >
-    Locataire: @{renter?.username ?? "..."}
-  </Link>
-) : (
-  <Link
-    href={{
-      pathname: "/user/[id]",
-      params: { id: itemDetails?.publisher?.userId },
-    }}
-    style={{ color: "#2563eb" }}
-  >
-    Propriétaire: @{itemDetails?.publisher?.username ?? "..."}
-  </Link>
-)}
+          {mode === "owner" ? (
+            <Link
+              href={{
+                pathname: "/user/[id]",
+                params: { id: item.renterId },
+              }}
+              style={{ color: "#2563eb" }}
+            >
+              Locataire: @{item.renterUsername ?? "..."}
+            </Link>
+          ) : (
+            <Link
+              href={{
+                pathname: "/user/[id]",
+                params: { id: item.ownerId },
+              }}
+              style={{ color: "#2563eb" }}
+            >
+              Propriétaire: @{item.ownerUsername ?? "..."}
+            </Link>
+          )}
         </Text>
 
         <Text style={{ color: getStatusColor(item.status) }}>
@@ -276,60 +236,60 @@ export default function RentalsScreen() {
 
         <Text>Total: {item.totalPrice} $</Text>
         {/* ACTIONS */}
-<View style={{ flexDirection: "row", marginTop: 10, gap: 6 }}>
+        <View style={{ flexDirection: "row", marginTop: 10, gap: 6 }}>
 
-  {/* 🔍 Voir item */}
-  <Pressable
-    onPress={() => router.push(`/item/${item.itemId}`)}
-    style={{
-      flex: 1,
-      backgroundColor: "#fff",
-      borderWidth: 1,
-      borderColor: "#ddd",
-      padding: 8,
-      borderRadius: 6,
-    }}
-  >
-    <Text style={{ textAlign: "center" }}>
-      🔍 Voir item
-    </Text>
-  </Pressable>
+          {/* 🔍 Voir item */}
+          <Pressable
+            onPress={() => router.push(`/item/${item.itemId}`)}
+            style={{
+              flex: 1,
+              backgroundColor: "#fff",
+              borderWidth: 1,
+              borderColor: "#ddd",
+              padding: 8,
+              borderRadius: 6,
+            }}
+          >
+            <Text style={{ textAlign: "center" }}>
+              🔍 Voir item
+            </Text>
+          </Pressable>
 
-  {/* ✉️ Contacter */}
-  <Pressable
-    onPress={() => {
-      const receiverId =
-        mode === "owner"
-          ? item.renterId
-          : itemDetails?.publisher?.userId;
+          {/* ✉️ Contacter */}
+          <Pressable
+            onPress={() => {
+              const receiverId =
+                mode === "owner"
+                  ? item.renterId
+                  : item.ownerId;
 
-      const username =
-        mode === "owner"
-          ? renter?.username
-          : itemDetails?.publisher?.username;
+              const username =
+                mode === "owner"
+                  ? item.renterUsername
+                  : item.ownerUsername;
 
-      router.push({
-        pathname: "/messages/chat",
-        params: {
-          receiverId,
-          itemId: item.itemId,
-          receiverUsername: username ?? "",
-        },
-      });
-    }}
-    style={{
-      flex: 1,
-      backgroundColor: "#10b981",
-      padding: 8,
-      borderRadius: 6,
-    }}
-  >
-    <Text style={{ color: "#fff", textAlign: "center" }}>
-      ✉️ Contacter
-    </Text>
-  </Pressable>
+              router.push({
+                pathname: "/messages/chat",
+                params: {
+                  receiverId,
+                  itemId: item.itemId,
+                  receiverUsername: username ?? "",
+                },
+              });
+            }}
+            style={{
+              flex: 1,
+              backgroundColor: "#10b981",
+              padding: 8,
+              borderRadius: 6,
+            }}
+          >
+            <Text style={{ color: "#fff", textAlign: "center" }}>
+              ✉️ Contacter
+            </Text>
+          </Pressable>
 
-</View>
+        </View>
         <Text>Date début: {item.startDate}</Text>
         <Text>Date fin: {item.endDate}</Text>
 

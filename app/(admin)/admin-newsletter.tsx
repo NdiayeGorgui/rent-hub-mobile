@@ -8,6 +8,8 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { API } from "@/src/api/api";
@@ -127,204 +129,212 @@ export default function AdminNewsletterScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScrollView
-        contentContainerStyle={{
-          paddingBottom: insets.bottom + 40,
-        }}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={20}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>📧 Newsletter</Text>
-          <Text style={styles.headerDesc}>
-            Gérez vos abonnés et envoyez vos newsletters
-          </Text>
-        </View>
-
-        {/* Stats */}
-        <View style={styles.statsRow}>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>{subscribers.length}</Text>
-            <Text style={styles.statLabel}>Abonnés</Text>
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{
+            paddingBottom: insets.bottom + 40,
+            flexGrow: 1,
+          }}
+        >
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={styles.headerTitle}>📧 Newsletter</Text>
+            <Text style={styles.headerDesc}>
+              Gérez vos abonnés et envoyez vos newsletters
+            </Text>
           </View>
 
-          <View style={styles.statCard}>
-            <Text style={[styles.statValue, { color: "#16a34a" }]}>
-              100%
-            </Text>
-            <Text style={styles.statLabel}>Opt-in</Text>
+          {/* Stats */}
+          <View style={styles.statsRow}>
+            <View style={styles.statCard}>
+              <Text style={styles.statValue}>{subscribers.length}</Text>
+              <Text style={styles.statLabel}>Abonnés</Text>
+            </View>
+
+            <View style={styles.statCard}>
+              <Text style={[styles.statValue, { color: "#16a34a" }]}>
+                100%
+              </Text>
+              <Text style={styles.statLabel}>Opt-in</Text>
+            </View>
           </View>
-        </View>
 
-        {/* Tabs */}
-        <View style={styles.tabs}>
-          <TouchableOpacity
-            onPress={() => setActiveTab("compose")}
-            style={[
-              styles.tabBtn,
-              activeTab === "compose" && styles.activeTab,
-            ]}
-          >
-            <Text
+          {/* Tabs */}
+          <View style={styles.tabs}>
+            <TouchableOpacity
+              onPress={() => setActiveTab("compose")}
               style={[
-                styles.tabText,
-                activeTab === "compose" && styles.activeTabText,
+                styles.tabBtn,
+                activeTab === "compose" && styles.activeTab,
               ]}
             >
-              ✏️ Rédiger
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => setActiveTab("subscribers")}
-            style={[
-              styles.tabBtn,
-              activeTab === "subscribers" && styles.activeTab,
-            ]}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                activeTab === "subscribers" && styles.activeTabText,
-              ]}
-            >
-              👥 Abonnés
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* ───────────────────────────── */}
-        {/* COMPOSE */}
-        {/* ───────────────────────────── */}
-        {activeTab === "compose" && (
-          <View style={styles.card}>
-            <Text style={styles.label}>Sujet *</Text>
-
-            <TextInput
-              value={subject}
-              onChangeText={setSubject}
-              placeholder="Ex: Nouveautés Gonifty"
-              placeholderTextColor="#9ca3af"
-              style={styles.input}
-            />
-
-            <View style={{ height: 18 }} />
-
-            <View style={styles.rowBetween}>
-              <Text style={styles.label}>Contenu *</Text>
-              <Text style={styles.counter}>
-                {body.length} caractères
+              <Text
+                style={[
+                  styles.tabText,
+                  activeTab === "compose" && styles.activeTabText,
+                ]}
+              >
+                ✏️ Rédiger
               </Text>
-            </View>
-
-            <TextInput
-              value={body}
-              onChangeText={setBody}
-              multiline
-              textAlignVertical="top"
-              placeholder="Bonjour,
-
-Voici les nouveautés de cette semaine sur Gonifty..."
-              placeholderTextColor="#9ca3af"
-              style={styles.textarea}
-            />
-
-            <View style={styles.infoBox}>
-              <Text style={styles.infoText}>
-                📨 Envoyé à{" "}
-                <Text style={{ fontWeight: "800", color: "#111827" }}>
-                  {subscribers.length} abonnés
-                </Text>
-              </Text>
-
-              <Text style={styles.infoSub}>
-                Désabonnement automatique inclus
-              </Text>
-            </View>
+            </TouchableOpacity>
 
             <TouchableOpacity
-              disabled={sending || subscribers.length === 0}
-              onPress={handleSend}
+              onPress={() => setActiveTab("subscribers")}
               style={[
-                styles.sendBtn,
-                (sending || subscribers.length === 0) && {
-                  opacity: 0.6,
-                },
+                styles.tabBtn,
+                activeTab === "subscribers" && styles.activeTab,
               ]}
             >
-              {sending ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.sendBtnText}>
-                  📤 Envoyer la newsletter
-                </Text>
-              )}
+              <Text
+                style={[
+                  styles.tabText,
+                  activeTab === "subscribers" && styles.activeTabText,
+                ]}
+              >
+                👥 Abonnés
+              </Text>
             </TouchableOpacity>
           </View>
-        )}
 
-        {/* ───────────────────────────── */}
-        {/* SUBSCRIBERS */}
-        {/* ───────────────────────────── */}
-        {activeTab === "subscribers" && (
-          <View style={styles.card}>
-            <View style={styles.searchRow}>
+          {/* ───────────────────────────── */}
+          {/* COMPOSE */}
+          {/* ───────────────────────────── */}
+          {activeTab === "compose" && (
+            <View style={styles.card}>
+              <Text style={styles.label}>Sujet *</Text>
+
               <TextInput
-                value={search}
-                onChangeText={setSearch}
-                placeholder="Rechercher un email..."
+                value={subject}
+                onChangeText={setSubject}
+                placeholder="Ex: Nouveautés Gonifty"
                 placeholderTextColor="#9ca3af"
-                style={styles.searchInput}
+                style={styles.input}
               />
 
-              <TouchableOpacity
-                onPress={loadSubscribers}
-                style={styles.refreshBtn}
-              >
-                <Text style={styles.refreshText}>🔄</Text>
-              </TouchableOpacity>
-            </View>
+              <View style={{ height: 18 }} />
 
-            {loadingSubs ? (
-              <View style={{ paddingVertical: 40 }}>
-                <ActivityIndicator size="large" color="#2563eb" />
-              </View>
-            ) : filtered.length === 0 ? (
-              <View style={styles.empty}>
-                <Text style={styles.emptyEmoji}>📭</Text>
-                <Text style={styles.emptyText}>
-                  Aucun abonné trouvé
+              <View style={styles.rowBetween}>
+                <Text style={styles.label}>Contenu *</Text>
+                <Text style={styles.counter}>
+                  {body.length} caractères
                 </Text>
               </View>
-            ) : (
-              <View>
-                {filtered.map((email, index) => (
-                  <View key={index} style={styles.subscriberRow}>
-                    <View style={styles.avatar}>
-                      <Text style={styles.avatarText}>
-                        {email[0].toUpperCase()}
-                      </Text>
-                    </View>
 
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.emailText}>
-                        {email}
-                      </Text>
-                    </View>
+              <TextInput
+                value={body}
+                onChangeText={setBody}
+                multiline
+                textAlignVertical="top"
+                placeholder="Bonjour,
 
-                    <TouchableOpacity
-                      onPress={() => handleRemove(email)}
-                    >
-                      <Text style={styles.removeText}>
-                        Supprimer
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                ))}
+Voici les nouveautés de cette semaine sur Gonifty..."
+                placeholderTextColor="#9ca3af"
+                style={styles.textarea}
+              />
+
+              <View style={styles.infoBox}>
+                <Text style={styles.infoText}>
+                  📨 Envoyé à{" "}
+                  <Text style={{ fontWeight: "800", color: "#111827" }}>
+                    {subscribers.length} abonnés
+                  </Text>
+                </Text>
+
+                <Text style={styles.infoSub}>
+                  Désabonnement automatique inclus
+                </Text>
               </View>
-            )}
-          </View>
-        )}
-      </ScrollView>
+
+              <TouchableOpacity
+                disabled={sending || subscribers.length === 0}
+                onPress={handleSend}
+                style={[
+                  styles.sendBtn,
+                  (sending || subscribers.length === 0) && {
+                    opacity: 0.6,
+                  },
+                ]}
+              >
+                {sending ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.sendBtnText}>
+                    📤 Envoyer la newsletter
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* ───────────────────────────── */}
+          {/* SUBSCRIBERS */}
+          {/* ───────────────────────────── */}
+          {activeTab === "subscribers" && (
+            <View style={styles.card}>
+              <View style={styles.searchRow}>
+                <TextInput
+                  value={search}
+                  onChangeText={setSearch}
+                  placeholder="Rechercher un email..."
+                  placeholderTextColor="#9ca3af"
+                  style={styles.searchInput}
+                />
+
+                <TouchableOpacity
+                  onPress={loadSubscribers}
+                  style={styles.refreshBtn}
+                >
+                  <Text style={styles.refreshText}>🔄</Text>
+                </TouchableOpacity>
+              </View>
+
+              {loadingSubs ? (
+                <View style={{ paddingVertical: 40 }}>
+                  <ActivityIndicator size="large" color="#2563eb" />
+                </View>
+              ) : filtered.length === 0 ? (
+                <View style={styles.empty}>
+                  <Text style={styles.emptyEmoji}>📭</Text>
+                  <Text style={styles.emptyText}>
+                    Aucun abonné trouvé
+                  </Text>
+                </View>
+              ) : (
+                <View>
+                  {filtered.map((email, index) => (
+                    <View key={index} style={styles.subscriberRow}>
+                      <View style={styles.avatar}>
+                        <Text style={styles.avatarText}>
+                          {email[0].toUpperCase()}
+                        </Text>
+                      </View>
+
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.emailText}>
+                          {email}
+                        </Text>
+                      </View>
+
+                      <TouchableOpacity
+                        onPress={() => handleRemove(email)}
+                      >
+                        <Text style={styles.removeText}>
+                          Supprimer
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

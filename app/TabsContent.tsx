@@ -79,6 +79,16 @@ export default function TabsContent() {
         }}
       />
 
+       <Tabs.Screen
+        name="payments"
+        options={{
+          title: "Payments",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="wallet-outline" size={size} color={color} />
+          ),
+        }}
+      />
+
       {isAdmin && (
         <Tabs.Screen
           name="users"

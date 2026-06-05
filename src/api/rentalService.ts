@@ -14,6 +14,11 @@ export interface RentalResponse {
   status: "CREATED" | "APPROVED" | "CANCELLED" | "ONGOING" | "ENDED";
   totalPrice: number;
   createdAt: string;
+  itemTitle?: string;
+  itemImageUrls?: string[];
+
+  ownerUsername?: string;
+  renterUsername?: string;
 }
 
 /* =========================

@@ -59,6 +59,13 @@ export const refundAuctionFee = async (paymentIntentId: string) => {
   );
 };
 
+export const refundSimple = async (paymentIntentId: string) => {
+  const res = await API.post(
+    `/payments/admin/refund-simple?paymentIntentId=${paymentIntentId}`
+  );
+  return res.data;
+};
+
 export const cancelAuctionPayment = async (data: {
   auctionId: number;
   itemId: number;

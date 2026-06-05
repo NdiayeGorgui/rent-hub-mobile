@@ -34,3 +34,15 @@ export const getAllReviewsForUser = async (userId: string) => {
   const res = await API.get(`/reviews/user/${userId}/all`);
   return res.data;
 };
+
+export const hasReviewedRentalBatch = async (
+  rentalIds: number[]
+): Promise<Record<number, boolean>> => {
+
+  const response = await API.post(
+    `/reviews/has-reviewed-batch`,
+    rentalIds
+  );
+
+  return response.data;
+};

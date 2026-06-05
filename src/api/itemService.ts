@@ -129,3 +129,7 @@ export const getNearbyItems = async (lat: number, lng: number, radiusKm = 10) =>
   return response.data;
 };
 
+export const fetchItemsBatch = async (ids: number[]) => {
+  const response = await API.post("/items/internal/batch", ids);
+  return response.data;
+};

@@ -1,5 +1,5 @@
 import {
-    View, Text, FlatList, ActivityIndicator,
+    View, Text, FlatList, ActivityIndicator, Image,
     TouchableOpacity, TextInput, Alert, StyleSheet, KeyboardAvoidingView,
     Platform
 } from "react-native";
@@ -10,20 +10,43 @@ import {
     getMyParticipatingAuctions,
     placeBid,
 } from "@/src/api/auctionService";
-import { fetchItemDetails } from "@/src/api/itemService";
-import { fetchUserProfile } from "@/src/api/authService";
+
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { BASE_URL } from "@/src/utils/baseURL";
 
 export default function AuctionsScreen() {
+    interface Auction {
+        id: number;
+        itemId: number;
+
+        ownerId: string;
+        winnerId?: string;
+
+        startPrice: number;
+        currentPrice: number;
+
+        participantsCount: number;
+        views: number;
+        watchers: number;
+
+        endDate: string;
+        status: string;
+        reserveReached: boolean;
+
+        itemTitle?: string;
+        itemImages?: string[];
+
+        ownerUsername?: string;
+        winnerUsername?: string;
+    }
     const [mode, setMode] = useState<"launched" | "participating">("launched");
-    const [auctions, setAuctions] = useState<any[]>([]);
-    const [itemsMap, setItemsMap] = useState<Record<number, any>>({});
-    const [ownersMap, setOwnersMap] = useState<Record<string, any>>({});
+
     const [loading, setLoading] = useState(false);
     const [bidAmounts, setBidAmounts] = useState<Record<number, string>>({});
     const [bidLoadingId, setBidLoadingId] = useState<number | null>(null);
     const [now, setNow] = useState(new Date());
+    const [auctions, setAuctions] = useState<Auction[]>([]);
 
     // ── Countdown live ────────────────────────────────────
     useEffect(() => {
@@ -58,40 +81,22 @@ export default function AuctionsScreen() {
     // ── Load data ─────────────────────────────────────────
     const loadData = useCallback(async () => {
         setLoading(true);
+
         try {
-            const data = mode === "launched"
-                ? await getMyLaunchedAuctions()
-                : await getMyParticipatingAuctions();
+
+            const data =
+                mode === "launched"
+                    ? await getMyLaunchedAuctions()
+                    : await getMyParticipatingAuctions();
 
             setAuctions(data);
-
-            const uniqueItemIds = [...new Set(data.map((a: any) => a.itemId))];
-            const itemsResults = await Promise.all(
-                uniqueItemIds.map(async (itemId: any) => {
-                    try { return [itemId, await fetchItemDetails(itemId)]; }
-                    catch { return [itemId, null]; }
-                })
-            );
-            setItemsMap(Object.fromEntries(itemsResults));
-
-            // Charger owners (participating) ou winners (launched)
-            const userIds = mode === "participating"
-                ? [...new Set(data.map((a: any) => a.ownerId?.toString()).filter(Boolean))]
-                : [...new Set(data.filter((a: any) => a.winnerId).map((a: any) => a.winnerId?.toString()))];
-
-            const usersResults = await Promise.all(
-                userIds.map(async (uid: any) => {
-                    try { return [uid, await fetchUserProfile(uid)]; }
-                    catch { return [uid, null]; }
-                })
-            );
-            setOwnersMap(Object.fromEntries(usersResults));
 
         } catch (e) {
             console.log("Error loading auctions", e);
         } finally {
             setLoading(false);
         }
+
     }, [mode]);
 
     useEffect(() => { loadData(); }, [loadData]);
@@ -130,9 +135,7 @@ export default function AuctionsScreen() {
 
     // ── Render card ───────────────────────────────────────
     const renderAuction = ({ item: auction }: any) => {
-        const item = itemsMap[auction.itemId];
-        const owner = ownersMap[auction.ownerId?.toString()];
-        const winner = ownersMap[auction.winnerId?.toString()];
+
         const { label, color, bg } = getStatusConfig(auction.status);
         const isOpen = auction.status === "OPEN";
         const isEnded = ["CLOSED", "RESERVE_NOT_MET"].includes(auction.status);
@@ -140,12 +143,25 @@ export default function AuctionsScreen() {
 
         return (
             <View style={styles.card}>
+                {/* IMAGE */}
+                {auction.itemImages?.[0] && (
+                    <Image
+                        source={{ uri: `${BASE_URL}${auction.itemImages[0]}` }}
+                        style={{
+                            width: "100%",
+                            height: 180,
+                            borderRadius: 12,
+                            marginBottom: 12,
+                        }}
+                        resizeMode="contain"
+                    />
+                )}
 
                 {/* Header */}
                 <View style={styles.cardHeader}>
                     <View style={{ flex: 1 }}>
                         <Text style={styles.cardTitle} numberOfLines={1}>
-                            {item?.title ?? "Chargement..."}
+                            {auction.itemTitle}
                         </Text>
                         <Text style={styles.cardSubtitle}>Enchère #{auction.id}</Text>
                     </View>
@@ -200,29 +216,29 @@ export default function AuctionsScreen() {
                     </View>
 
                     {/* Propriétaire (participating) */}
-                    {mode === "participating" && owner && (
+                    {mode === "participating" && (
                         <View style={styles.statItem}>
                             <Text style={styles.statLabel}>Propriétaire</Text>
                             <TouchableOpacity onPress={() => router.push(`/user/${auction.ownerId}` as any)}>
                                 <Text style={[styles.statValue, { color: "#2563eb" }]}>
-                                    @{owner.username}
+                                    @{auction.ownerUsername}
                                 </Text>
                             </TouchableOpacity>
                         </View>
                     )}
 
                     {/* Gagnant (launched, terminée) */}
-                    {mode === "launched" && auction.winnerId && isEnded && winner && (
+                    {mode === "launched" && auction.winnerId && isEnded && (
                         <View style={styles.statItem}>
                             <Text style={styles.statLabel}>Gagnant</Text>
                             <Link
                                 href={{
                                     pathname: "/user/[id]",
-                                    params: { id: winner.userId }, // ⚠️ ou winner.id selon ton backend
+                                    params: { id: auction.winnerId }, // ⚠️ ou winner.id selon ton backend
                                 }}
                             >
                                 <Text style={[styles.statValue, { color: "#16a34a" }]}>
-                                    🏆 @{winner.username}
+                                    🏆 @{auction.winnerUsername}
                                 </Text>
                             </Link>
                         </View>
@@ -252,7 +268,7 @@ export default function AuctionsScreen() {
                                     params: {
                                         receiverId: auction.ownerId,
                                         itemId: auction.itemId,
-                                        receiverUsername: owner?.username ?? "",
+                                        receiverUsername: auction.ownerUsername,
                                     }
                                 } as any)}
                             >
@@ -269,7 +285,7 @@ export default function AuctionsScreen() {
                                     params: {
                                         receiverId: auction.winnerId,
                                         itemId: auction.itemId,
-                                        receiverUsername: winner?.username ?? "",
+                                        receiverUsername: auction.winnerUsername,
                                     }
                                 } as any)}
                             >

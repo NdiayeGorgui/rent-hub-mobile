@@ -11,7 +11,7 @@ function AdminMenu() {
 
   const menuItems = [
     { label: "FAQ", icon: "help-circle-outline",  route: "/admin-faq" },
-    { label: "Infolettre", icon: "help-circle-outline",  route: "/admin-newsletter" },
+    { label: "Infolettre", icon: "newspaper-outline",  route: "/admin-newsletter" },
     { label: "Tableau de bord", icon: "speedometer-outline",  route: "/dashboard" },
     { label: "Déconnexion", icon: "log-out-outline", route: "/deconnexion" }
   ];
@@ -60,7 +60,7 @@ function UserMenu() {
 
   const menuItems = [
     { label: "Centre d'aides", icon: "alert-circle-outline", route: "/faq" },
-    { label: "Litige", icon: "shield-alert-outline", route: "/dispute" },
+    { label: "Litiges", icon: "scale-balance-outline", route: "/disputes" },
     { label: "Contact", icon: "mail-outline", route: "/contact" },
     { label: "Infolettre", icon: "newspaper-outline", route: "/newsletter" },
     { label: "Régie publicitaire", icon: "megaphone-outline", route: "/publicite" },
@@ -193,7 +193,7 @@ export default function TabsLayout() {
         options={{
           title: "Litiges",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="alert-circle-outline" size={size} color={color} />
+            <Ionicons name="scale-outline" size={size} color={color} />
           ),
           href: !isAdmin ? "/disputes" : null,
         }}
@@ -263,9 +263,20 @@ export default function TabsLayout() {
         options={{
           title: "Litiges",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="alert-circle-outline" size={size} color={color} />
+            <Ionicons name="scale-outline" size={size} color={color} />
           ),
           href: isAdmin ? "/admin-disputes" : null,
+        }}
+      />
+
+      <Tabs.Screen
+        name="payments"
+        options={{
+          title: "Paiements",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="wallet-outline" size={size} color={color} />
+          ),
+          href: isAdmin ? "./payments" : null,
         }}
       />
      

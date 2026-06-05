@@ -22,7 +22,7 @@ import {
     resolveDisputeAdmin,
 } from "@/src/api/adminDisputeService";
 
-import { fetchItemDetails } from "@/src/api/itemService";
+
 import { getStatusLabel } from "@/src/utils/statusUtils";
 import { RefreshControl } from "react-native";
 
@@ -33,7 +33,7 @@ export default function AdminDisputesScreen() {
     const [selectedDispute, setSelectedDispute] = useState<any>(null);
     const [decision, setDecision] = useState<"RESOLVED" | "REJECTED" | null>(null);
     const [adminComment, setAdminComment] = useState("");
-    const [itemsMap, setItemsMap] = useState<Record<number, any>>({});
+
     const [action, setAction] = useState<string | null>(null);
     const [refreshing, setRefreshing] = useState(false);
     const [submitting, setSubmitting] = useState(false);
@@ -50,27 +50,35 @@ export default function AdminDisputesScreen() {
         setRefreshing(false);
     };
 
-    const getDecisionLabel = (decision: string) => {
+    const getDecisionLabel = (value: string) => {
         const map: Record<string, string> = {
+
+            // Décisions
             RESOLVED: "Approuvé",
             REJECTED: "Rejeté",
+
+            // Actions
+            NONE: "Aucune action",
+            SUSPEND_USER: "Suspendre l'utilisateur",
+            DEACTIVATE_ITEM: "Désactiver l'item",
+            REFUND_AUCTION_FEE: "Rembourser les frais d'enchère",
+
+            // Statuts litiges
+            OPEN: "Ouvert",
+            IN_REVIEW: "En cours d'analyse",
+
+            // Bonus si utilisé ailleurs
+            SUCCESS: "Réussi",
+            FAILED: "Échec",
+            PENDING: "En attente",
         };
 
-        return map[decision] ?? decision;
+        return map[value] ?? value;
     };
     const loadDisputes = async () => {
         try {
             const data = await getAllDisputesAdmin();
             setDisputes(data);
-
-            const uniqueItemIds = [...new Set(data.map((d: any) => d.itemId))] as number[];
-            const itemsResults = await Promise.all(
-                uniqueItemIds.map(async (itemId: number) => {
-                    try { return [itemId, await fetchItemDetails(itemId)]; }
-                    catch { return [itemId, null]; }
-                })
-            );
-            setItemsMap(Object.fromEntries(itemsResults));
         } catch {
             showAlert("Erreur", "Impossible de charger les litiges");
         }
@@ -189,7 +197,7 @@ export default function AdminDisputesScreen() {
                             <View style={styles.cardHeader}>
                                 <View>
                                     <Text style={styles.cardTitle}>
-                                        {itemsMap[item.itemId]?.title ?? "Loading..."}
+                                        {item.itemTitle ?? "Item supprimé"}
                                     </Text>
                                     <Text style={styles.subText}>
                                         {item.rentalId
@@ -199,12 +207,21 @@ export default function AdminDisputesScreen() {
                                 </View>
                                 {renderStatusBadge(item.status)}
                             </View>
-
                             <Text style={styles.reason}>{item.reason}</Text>
+                            <Text style={styles.subText}>
+                                👤 Plaignant : {item.openedUsername}
+                            </Text>
+
+                            {item.reportedUsername && (
+                                <Text style={[styles.subText, { color: "#e53935" }]}>
+                                    ⚠️ Accusé : {item.reportedUsername}
+                                </Text>
+                            )}
+                            
 
                             {item.adminDecision && (
                                 <Text style={{ marginTop: 6, fontStyle: "italic", color: "#444" }}>
-                                    Décision admin : {item.adminDecision}
+                                    Décision admin : {getDecisionLabel(item.adminDecision)}
                                 </Text>
                             )}
                         </View>
@@ -252,7 +269,7 @@ export default function AdminDisputesScreen() {
                                         }}
                                     >
                                         <Text style={styles.cardTitle}>
-                                            {itemsMap[item.itemId]?.title ?? "Loading..."}
+                                            {item.itemTitle ?? "Item supprimé"}
                                         </Text>
 
                                         <Text style={styles.subText}>
@@ -289,7 +306,7 @@ export default function AdminDisputesScreen() {
                                         </Text>
 
                                         <Text style={styles.subText}>
-                                            Item : {itemsMap[selectedDispute.itemId]?.title ?? "Loading..."}
+                                            Item : {selectedDispute.itemTitle ?? "Item supprimé"}
                                         </Text>
 
                                         <Text style={styles.subText}>
@@ -301,6 +318,15 @@ export default function AdminDisputesScreen() {
                                         <Text style={styles.subText}>
                                             Raison : {selectedDispute.reason}
                                         </Text>
+                                        <Text style={styles.subText}>
+                                            👤 Plaignant : {selectedDispute.openedUsername}
+                                        </Text>
+
+                                        {selectedDispute.reportedUsername && (
+                                            <Text style={styles.subText}>
+                                                ⚠️ Accusé : {selectedDispute.reportedUsername}
+                                            </Text>
+                                        )}
 
                                         {/* ── Décision ── */}
                                         <Text style={styles.sectionTitle}>Décision :</Text>
@@ -390,7 +416,9 @@ export default function AdminDisputesScreen() {
                                                 </Text>
                                                 {action && (
                                                     <Text style={styles.summaryText}>
-                                                        Action : <Text style={{ fontWeight: "bold" }}>{action}</Text>
+                                                        Action : <Text style={{ fontWeight: "bold" }}>
+                                                            {getDecisionLabel(action)}
+                                                        </Text>
                                                     </Text>
                                                 )}
                                             </View>
