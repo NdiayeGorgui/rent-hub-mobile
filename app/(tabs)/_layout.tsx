@@ -10,9 +10,9 @@ function AdminMenu() {
   const [visible, setVisible] = useState(false);
 
   const menuItems = [
-    { label: "FAQ", icon: "help-circle-outline",  route: "/admin-faq" },
-    { label: "Infolettre", icon: "newspaper-outline",  route: "/admin-newsletter" },
-    { label: "Tableau de bord", icon: "speedometer-outline",  route: "/dashboard" },
+    { label: "FAQ", icon: "help-circle-outline", route: "/admin-faq" },
+    { label: "Infolettre", icon: "newspaper-outline", route: "/admin-newsletter" },
+    { label: "Tableau de bord", icon: "speedometer-outline", route: "/dashboard" },
     { label: "Déconnexion", icon: "log-out-outline", route: "/deconnexion" }
   ];
 
@@ -127,13 +127,13 @@ export default function TabsLayout() {
             {!isAdmin && (
               <>
                 <PremiumButton />
-               
+
                 <MessageInboxButton />
-                
+
               </>
             )}
             <NotificationBell />
-              {!isAdmin && <UserMenu />}
+            {!isAdmin && <UserMenu />}
             {isAdmin && <AdminMenu />}
           </View>
         ),
@@ -178,7 +178,7 @@ export default function TabsLayout() {
           href: !isAdmin ? "/rentals" : null,
         }}
       />
-       <Tabs.Screen
+      <Tabs.Screen
         name="auctions"
         options={{
           title: "Enchères",
@@ -229,13 +229,20 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="auction-fee"
+        options={{
+           title: "Paiement enchère",
+          href: null, // ← caché de la tab bar
+        }}
+      />
+      <Tabs.Screen
         name="deconnexion"
         options={{
           title: "Déconnexion",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="log-out-outline" size={size} color={color} />
           ),
-        
+
         }}
       />
       <Tabs.Screen
@@ -279,7 +286,7 @@ export default function TabsLayout() {
           href: isAdmin ? "./payments" : null,
         }}
       />
-     
+
       <Tabs.Screen
         name="profile"
         options={{

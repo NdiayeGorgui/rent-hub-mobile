@@ -205,7 +205,56 @@ export default function RentalsScreen() {
             resizeMode="contain"
           />
         )}
+{/* Header */}
+<View
+  style={{
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 10,
+  }}
+>
+  <View style={{ flex: 1 }}>
+    <Text
+      numberOfLines={1}
+      style={{
+        fontSize: 18,
+        fontWeight: "700",
+        color: "#111827",
+      }}
+    >
+      {item.itemTitle}
+    </Text>
 
+    <Text
+      style={{
+        color: "#6b7280",
+        marginTop: 2,
+      }}
+    >
+      Location #{item.id}
+    </Text>
+  </View>
+
+  <View
+    style={{
+      backgroundColor: getStatusColor(item.status),
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 20,
+    }}
+  >
+    <Text
+      style={{
+        color: "#fff",
+        fontWeight: "600",
+        fontSize: 12,
+      }}
+    >
+      {getStatusLabel(item.status)}
+    </Text>
+  </View>
+</View>
         <Text style={{ color: "#6b7280", marginBottom: 6 }}>
           {mode === "owner" ? (
             <Link
@@ -230,9 +279,6 @@ export default function RentalsScreen() {
           )}
         </Text>
 
-        <Text style={{ color: getStatusColor(item.status) }}>
-          Statut: {getStatusLabel(item.status)}
-        </Text>
 
         <Text>Total: {item.totalPrice} $</Text>
         {/* ACTIONS */}

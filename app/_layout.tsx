@@ -33,6 +33,7 @@ export default function RootLayout() {
             <Stack.Screen name="review/create" options={{ title: "Laisser un avis" }} />
             <Stack.Screen name="user/[id]" options={{ title: "Profil" }} />
             <Stack.Screen name="subscription/subscription" options={{ title: "Premium" }} />
+            <Stack.Screen name="auction-fee" options={{ title: "Paiement enchère" }} />
             <Stack.Screen name="faq/index" options={{ title: "Aide" }} />
             <Stack.Screen name="auction-fee/[itemId]" options={{ title: "Frais d'enchère" }} />
           </Stack>

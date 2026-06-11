@@ -52,7 +52,7 @@
             {
               "scheme": "https",
               "host": "app.gonifty.ca",
-              "pathPrefix": "/reset-password"
+              "pathPrefix": "/"
             }
           ],
           "category": [

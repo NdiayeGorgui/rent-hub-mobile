@@ -3,6 +3,7 @@ import { ScrollView, View, Text, ActivityIndicator, StyleSheet } from "react-nat
 import { getAdminStats } from "@/src/api/adminService";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { formatPrice } from "@/src/utils/formatPrice";
 
 function StatCard({ title, value, icon, color }: {
     title: string; value: any; icon: string; color: string;
@@ -113,7 +114,7 @@ export default function AdminDashboard() {
 
             <Section title="📦 Items">
                 <StatCard title="Total" value={itemStats.totalItems} icon="cube-outline" color="#7c3aed" />
-                <StatCard title="Publiés" value={itemStats.publishedItems} icon="checkmark-circle-outline" color="#22c55e" />
+                <StatCard title="Actifs" value={itemStats.publishedItems} icon="checkmark-circle-outline" color="#22c55e" />
                 <StatCard title="Inactifs" value={itemStats.inactiveItems} icon="ban-outline" color="#ef4444" />
                 <StatCard title="Nouveaux" value={itemStats.newItems} icon="sparkles-outline" color="#22c55e" />
             </Section>
@@ -133,7 +134,7 @@ export default function AdminDashboard() {
                 <StatCard title="Réserve non atteinte" value={auctionStats.reserveNotMetAuctions} icon="alert-circle-outline" color="#f59e0b" />
                 <StatCard title="Avec gagnant" value={auctionStats.auctionsWithWinner} icon="trophy-outline" color="#10b981" />
                 <StatCard title="Sans offre" value={auctionStats.auctionsWithoutBid} icon="ban-outline" color="#6b7280" />
-                <StatCard title="Prix moyen" value={`${(auctionStats.avgWinningPrice ?? 0).toFixed(2)} $`} icon="cash-outline" color="#10b981" />
+                <StatCard title="Prix moyen" value={`${formatPrice((auctionStats.avgWinningPrice ?? 0).toFixed(2))} `} icon="cash-outline" color="#10b981" />
             </Section>
 
             <Section title="💳 Paiements">
@@ -144,8 +145,8 @@ export default function AdminDashboard() {
             </Section>
 
             <Section title="💰 Revenus & Avis">
-                <StatCard title="Revenus bruts" value={`${(paymentStats.totalAmount ?? 0).toFixed(2)} $`} icon="cash-outline" color="#10b981" />
-                <StatCard title="Remboursements" value={`${(paymentStats.refundPayments ?? 0).toFixed(2)} $`} icon="wallet-outline" color="#10b981" />
+                <StatCard title="Revenus bruts" value={`${formatPrice((paymentStats.totalAmount ?? 0).toFixed(2))} `} icon="cash-outline" color="#10b981" />
+                <StatCard title="Remboursements" value={`${formatPrice((paymentStats.refundPayments ?? 0).toFixed(2))} `} icon="wallet-outline" color="#10b981" />
                 <StatCard title="Note moyenne" value={(reviewStats.averageRating ?? 0).toFixed(1)} icon="star-outline" color="#facc15" />
                 <StatCard title="Note moyenne" value={(reviewStats.totalReviews ?? 0)} icon="chatbubble-ellipses-outline" color="#facc15" />
             </Section>

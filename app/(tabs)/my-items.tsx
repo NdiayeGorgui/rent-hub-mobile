@@ -13,6 +13,7 @@ import { fetchMyItems } from "../../src/api/itemService";
 import { router } from "expo-router";
 import { Platform } from "react-native";
 import { BASE_URL } from "@/src/utils/baseURL";
+import { formatPrice } from "@/src/utils/formatPrice";
 
 export default function MyItems() {
 
@@ -102,7 +103,7 @@ export default function MyItems() {
 
             {item.type === "RENTAL" && (
               <Text style={styles.price}>
-                {item.pricePerDay} $ / jour
+                {formatPrice(item.pricePerDay)}  / jour
               </Text>
             )}
 

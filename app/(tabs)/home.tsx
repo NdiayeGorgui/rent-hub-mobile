@@ -17,6 +17,7 @@ import { Platform } from "react-native";
 import { getAuctionPublicByItemId } from "../../src/api/auctionService";
 import * as Location from "expo-location";
 import { BASE_URL } from "@/src/utils/baseURL";
+import { formatPrice } from "@/src/utils/formatPrice";
 
 export default function Home() {
 
@@ -32,6 +33,7 @@ export default function Home() {
     { id: 7, name: "Maison & Meubles" },
     { id: 8, name: "Mode & Vêtements" },
     { id: 9, name: "Outils & Bricolage" },
+    { id: 11, name: "Matériel de construction" },
     { id: 10, name: "Autres" },
   ];
 
@@ -458,66 +460,134 @@ export default function Home() {
             return (
               <TouchableOpacity
                 style={styles.card}
-                onPress={() => router.push({ pathname: "/item/[id]", params: { id: item.id.toString() } })}
+                onPress={() =>
+                  router.push({
+                    pathname: "/item/[id]",
+                    params: { id: item.id.toString() },
+                  })
+                }
               >
+                {/* IMAGE */}
+                <View style={styles.imageContainer}>
+                  {uri && (
+                    <Image
+                      source={{ uri }}
+                      style={styles.image}
+                      resizeMode="cover"
+                    />
+                  )}
 
-                {/* ✅ IMAGE FIX */}
-                {uri && (
-                  <Image
-                    source={{ uri }}
-                    style={styles.image}
-                    resizeMode="contain"
-                    onLoad={() => console.log("✅ Image loaded:", uri)}
-                    onError={(e) => console.log("❌ Image error:", uri, e.nativeEvent.error)}
-                  />
-                )}
+                  {/* TYPE */}
+                  <View style={styles.topBadge}>
+                    <Text
+                      style={[
+                        styles.badge,
+                        item.type === "AUCTION"
+                          ? styles.auctionBadge
+                          : styles.rentalBadge,
+                      ]}
+                    >
+                      {item.type === "AUCTION"
+                        ? "🔥 ENCHÈRE"
+                        : "📦 LOCATION"}
+                    </Text>
+                  </View>
 
-                <View style={styles.badgeContainer}>
-                  <Text style={[styles.badge, item.type === "AUCTION" ? styles.auctionBadge : styles.rentalBadge]}>
-                    {item.type === "AUCTION" ? "🔥 ENCHÈRE" : "📦 LOCATION"}
-                  </Text>
+                  {/* PRIX */}
+                  <View style={styles.priceBadge}>
+                    <Text style={styles.priceBadgeText}>
+                      {item.type === "AUCTION"
+                        ? `${formatPrice(auctionData[item.id]?.startPrice ?? 0)} `
+                        : `${formatPrice(item.pricePerDay)} /jour`}
+                    </Text>
+                  </View>
                 </View>
 
-                <Text style={styles.title}>{item.title}</Text>
-                <Text>{truncate(item.description, 120)}</Text>
+                {/* CONTENU */}
+                <View style={styles.content}>
 
-                {item.distanceLabel && (
-                  <Text style={styles.distanceBadge}>📍 {item.distanceLabel}</Text>
-                )}
+                  <Text numberOfLines={2} style={styles.title}>
+                    {item.title}
+                  </Text>
 
-                {item.type !== "AUCTION" && item.pricePerDay != null && (
-                  <Text style={styles.price}>{item.pricePerDay} $/jour</Text>
-                )}
+                  <Text style={styles.city}>
+                    📍 {item.city}
+                  </Text>
 
-                {item.type === "AUCTION" && (
-                  <>
-                    <Text style={styles.price}>
-                      {auctionData[item.id]?.currentPrice != null
-                        ? `💰 Prix actuel : ${auctionData[item.id].currentPrice} $`
-                        : "Enchère pas encore commencée"}
+                  {item?.username && (
+                    <Text style={styles.username}>
+                      👤 {item?.username}
                     </Text>
+                  )}
 
-                    {auctionData[item.id]?.startPrice != null && (
-                      <Text style={{ fontSize: 12, color: "#666" }}>
-                        💰 Prix initial : {auctionData[item.id].startPrice} $
-                      </Text>
-                    )}
+                  <Text
+                    numberOfLines={2}
+                    style={styles.description}
+                  >
+                    {item.description}
+                  </Text>
 
-                    <Text style={{ fontSize: 12 }}>
-                      👀 {auctionData[item.id]?.views ?? 0} vues • ⭐ {auctionData[item.id]?.watchers ?? 0} suivent
+                  {/* STATS ENCHÈRE */}
+                  {item.type === "AUCTION" && auctionData[item.id] && (
+                    <>
+                      <View style={styles.separator} />
+
+                      {auctionData[item.id]?.currentPrice != null && (
+                        <Text style={styles.auctionInfo}>
+                          💰 Actuel : {formatPrice(auctionData[item.id].currentPrice)} 
+                        </Text>
+                      )}
+
+                      <View style={styles.auctionStatsRow}>
+                        <Text style={styles.auctionStat}>
+                          👀 {auctionData[item.id]?.views ?? 0}
+                        </Text>
+
+                        <Text style={styles.auctionStat}>
+                          ⭐ {auctionData[item.id]?.watchers ?? 0}
+                        </Text>
+
+                        <Text style={styles.auctionStat}>
+                          👥 {auctionData[item.id]?.participants ?? 0}
+                        </Text>
+                      </View>
+
+                      {auctionData[item.id]?.endDate && (
+                        <Text style={styles.timer}>
+                          ⏳ {getTimeLeft(auctionData[item.id].endDate)}
+                        </Text>
+                      )}
+                    </>
+                  )}
+
+                  {item.distanceLabel && (
+                    <Text style={styles.distanceBadge}>
+                      📍 {item.distanceLabel}
                     </Text>
+                  )}
+                  {/* Disponibilité / Popularité */}
+                  {item.type === "RENTAL" && (
+                    <>
+                      <View style={styles.separator} />
 
-                    <Text style={{ fontSize: 12, marginTop: 2 }}>
-                      👥 {auctionData[item.id]?.participants ?? 0}{" "}
-                      {(auctionData[item.id]?.participants ?? 0) > 1 ? "enchérisseurs" : "enchérisseur"}{" "}
-                      {(auctionData[item.id]?.participants ?? 0) >= 5 && "🔥 Compétition active"}
-                    </Text>
+                      <View style={styles.footerInfo}>
+                        <Text style={styles.footerText}>
+                          📅 Disponible
+                        </Text>
 
-                    {auctionData[item.id]?.endDate && (
-                      <Text style={styles.timer}>⏳ {getTimeLeft(auctionData[item.id].endDate)}</Text>
-                    )}
-                  </>
-                )}
+                        <Text style={styles.footerText}>
+                          {(item.rentalsCount ?? 0) > 10
+                            ? "🔥 Très populaire"
+                            : (item.rentalsCount ?? 0) > 5
+                              ? "🚀 En forte demande"
+                              : (item.rentalsCount ?? 0) > 0
+                                ? "✅ Déjà testé"
+                                : "🆕 Nouvelle annonce"}
+                        </Text>
+                      </View>
+                    </>
+                  )}
+                </View>
               </TouchableOpacity>
             );
           }}
@@ -529,6 +599,83 @@ export default function Home() {
 
 
 const styles = StyleSheet.create({
+  imageContainer: {
+    position: "relative",
+  },
+
+  topBadge: {
+    position: "absolute",
+    top: 10,
+    left: 10,
+  },
+
+  priceBadge: {
+    position: "absolute",
+    bottom: 10,
+    right: 10,
+    backgroundColor: "rgba(0,0,0,0.75)",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+
+  priceBadgeText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 12,
+  },
+
+  content: {
+    padding: 12,
+  },
+
+  city: {
+    color: "#6b7280",
+    marginTop: 4,
+    fontSize: 13,
+  },
+
+  username: {
+    color: "#6b7280",
+    marginTop: 3,
+    fontSize: 13,
+    fontWeight: "600",
+  },
+
+  description: {
+    color: "#9ca3af",
+    marginTop: 8,
+    lineHeight: 18,
+    fontSize: 13,
+  },
+
+  separator: {
+    height: 1,
+    backgroundColor: "#e5e7eb",
+    marginVertical: 10,
+  },
+
+  auctionInfo: {
+    color: "#374151",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+
+  auctionStatsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 8,
+  },
+
+  auctionStat: {
+    fontSize: 13,
+    color: "#4b5563",
+  },
+
+  image: {
+    width: "100%",
+    height: 220,
+  },
 
   container: {
     flex: 1,
@@ -663,13 +810,7 @@ const styles = StyleSheet.create({
   rentalBadge: {
     backgroundColor: "#2563eb",
   },
-  image: {
-    width: "100%",
-    aspectRatio: 4 / 3,      // ← hauteur dynamique selon ratio
-    borderRadius: 10,
-    marginBottom: 10,
-    backgroundColor: "#f0f0f0", // ← fond si image non carrée
-  },
+
   typePicker: {
     flex: 1,
     borderWidth: 1,
@@ -717,4 +858,20 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginTop: 4,
   },
+  footerInfo: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#f3f4f6",
+  },
+
+  footerText: {
+    fontSize: 13,
+    color: "#6b7280",
+    fontWeight: "500",
+  },
+
 });

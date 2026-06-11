@@ -19,6 +19,7 @@ import {
     activateItemAdmin,
     deactivateItemAdmin,
 } from "@/src/api/adminItemService";
+import { formatPrice } from "@/src/utils/formatPrice";
 
 interface Item {
     itemId: number;
@@ -209,12 +210,12 @@ export default function AdminItemsScreen() {
                                 <Text style={styles.price}>
                                     🔥 Enchère :{" "}
                                     {item.currentPrice != null
-                                        ? `${item.currentPrice} $`
+                                        ? `${formatPrice(item.currentPrice)} `
                                         : "Pas d'enchère"}
                                 </Text>
                             ) : (
                                 <Text style={styles.price}>
-                                    {item.pricePerDay} $ / jour
+                                    {formatPrice(item.pricePerDay)}  / jour
                                 </Text>
                             )}
                             <View style={styles.badgeRow}>

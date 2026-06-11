@@ -12,16 +12,17 @@ import {
 } from "react-native";
 import { useEffect, useState } from "react";
 import { Link, useLocalSearchParams, useRouter } from "expo-router";
-import { deactivateItem, fetchItemDetails } from "../../src/api/itemService";
+import { fetchItemDetails } from "../../src/api/itemService";
 import { TextInput, Pressable, Alert } from "react-native";
 import { createRental } from "../../src/api/rentalService";
-import { createAuction, getAuctionByItemId, isWatchingAuction, placeBid, watchAuction } from "../../src/api/auctionService";
+import { getAuctionByItemId, isWatchingAuction, placeBid, watchAuction } from "../../src/api/auctionService";
 import { getCurrentUser } from "../../src/api/authService";
-import { getReviewsByItem, getReviewsByUser, getReviewsCountByItem, getAllReviewsForUser } from "@/src/api/reviewService";
+import { getReviewsByItem, getReviewsCountByItem, getAllReviewsForUser } from "@/src/api/reviewService";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { ScrollView as HorizontalScroll, Dimensions } from "react-native";
 import { BASE_URL } from "@/src/utils/baseURL";
+import { formatPrice } from "@/src/utils/formatPrice";
 
 
 
@@ -37,10 +38,7 @@ export default function ItemDetails() {
   const insets = useSafeAreaInsets();
 
   const [isOwner, setIsOwner] = useState(false);
-  const [startPrice, setStartPrice] = useState("");
-  const [endDateAuction, setEndDateAuction] = useState("");
-  const [auctionLoading, setAuctionLoading] = useState(false);
-  const [deactivateLoading, setDeactivateLoading] = useState(false);
+
 
   const [bidAmount, setBidAmount] = useState("");
   const [bidLoading, setBidLoading] = useState(false);
@@ -55,9 +53,9 @@ export default function ItemDetails() {
   const [userReviewsLoading, setUserReviewsLoading] = useState(false);
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
-  const [showAuctionPicker, setShowAuctionPicker] = useState(false);
+
   const [isWatching, setIsWatching] = useState(false);
-  const [reservePrice, setReservePrice] = useState("");
+
   const { width } = Dimensions.get("window");
   const [activeImageIndex, setActiveImageIndex] = useState(0);
 
@@ -73,7 +71,7 @@ export default function ItemDetails() {
   const router = useRouter();
 
 
- 
+
 
 
   useEffect(() => {
@@ -370,7 +368,7 @@ export default function ItemDetails() {
                     </Text>
 
                     <Text style={styles.priceValue}>
-                      {auction.currentPrice ?? auction.startPrice} $
+                      {formatPrice(auction.currentPrice ?? auction.startPrice)} 
                     </Text>
 
                     {/* 🔥 AJOUTER ICI */}
@@ -385,7 +383,7 @@ export default function ItemDetails() {
                     )}
 
                     <Text>
-                      Prix initial : {auction.startPrice} $
+                      Prix initial : {formatPrice(auction.startPrice)} 
                     </Text>
 
                     <Text>
@@ -409,7 +407,42 @@ export default function ItemDetails() {
 
                   </View>
                 )}
+                {item.type === "RENTAL" && (
+                  <View style={styles.rentalHeader}>
 
+                    <Text style={styles.rentalPriceLine}>
+                      📦 Prix de location :{" "}
+                      <Text style={styles.rentalPriceValue}>
+                        {formatPrice(item.pricePerDay)} /jour
+                      </Text>
+                    </Text>
+
+                    {item.active ? (
+                      <View style={styles.availableBadge}>
+                        <Text style={styles.availableText}>
+                          ✅ Disponible
+                        </Text>
+                      </View>
+                    ) : (
+                      <View style={styles.unavailableBadge}>
+                        <Text style={styles.unavailableText}>
+                          ⛔ Indisponible
+                        </Text>
+                      </View>
+                    )}
+
+                    <Text style={styles.footerText}>
+                      {(item.rentalsCount ?? 0) > 10
+                        ? "🔥 Très populaire"
+                        : (item.rentalsCount ?? 0) > 5
+                          ? "🚀 En forte demande"
+                          : (item.rentalsCount ?? 0) > 0
+                            ? "✅ Déjà testé"
+                            : "🆕 Nouvelle annonce"}
+                    </Text>
+
+                  </View>
+                )}
                 {item.imageUrls?.length > 0 ? (
                   <View style={{ marginBottom: 10 }}>
                     {/* Carousel */}
@@ -454,15 +487,13 @@ export default function ItemDetails() {
                   </View>
                 ) : <Text>Aucune image</Text>}
 
-                {item.type === "RENTAL" && (
-                  <Text style={styles.price}>{item.pricePerDay} $/jour</Text>
-                )}
+
                 <Text style={styles.description}>{item.description}</Text>
-
-                <Text style={styles.section}>📍 Localisation</Text>
-                <Text>{item.city}</Text>
-                <Text>{item.address}</Text>
-
+                <View style={styles.card}>
+                  <Text style={styles.section}>📍 Localisation</Text>
+                  <Text>{item.city}</Text>
+                  <Text>{item.address}</Text>
+                </View>
                 {/* ── Propriétaire ── */}
                 <View style={styles.card}>
                   <Text style={styles.sectionTitle}>👤 Propriétaire</Text>
@@ -654,7 +685,7 @@ export default function ItemDetails() {
                 {item.type === "AUCTION" && !isOwner && !isAuctionFinished && currentUser?.premium && (
                   <>
                     <Text style={styles.section}>💰 Placer une enchère</Text>
-                    <Text>Prix actuel : {auction?.currentPrice ?? auction?.startPrice ?? "Pas encore d'enchère"} $</Text>
+                    <Text>Prix actuel : {formatPrice(auction?.currentPrice ?? auction?.startPrice) ?? "Pas encore d'enchère"} </Text>
                     <TextInput
                       placeholder="Votre offre"
                       value={bidAmount}
@@ -696,7 +727,8 @@ export default function ItemDetails() {
 
                 {/* ── Location (item actif seulement) ── */}
                 {item.type === "RENTAL" && !isOwner && item.active !== false && (
-                  <>
+                  <View style={styles.card}>
+                  <View style={styles.card}></View>
                     <Text style={styles.section}>📅 Louer cet item</Text>
 
                     {/* ── Date début ── */}
@@ -813,7 +845,7 @@ export default function ItemDetails() {
                         {rentLoading ? "Envoi..." : "Louer maintenant"}
                       </Text>
                     </Pressable>
-                  </>
+                 </View>
                 )}
 
                 {/* Item désactivé */}
@@ -844,7 +876,7 @@ export default function ItemDetails() {
                 {item.type === "AUCTION" && isOwner && auction && !isAuctionFinished && (
                   <>
                     <Text style={styles.section}>📊 Votre enchère</Text>
-                    <Text>Prix actuel : {auction?.currentPrice ?? auction?.startPrice ?? "Pas encore d'enchère"} $</Text>
+                    <Text>Prix actuel : {formatPrice(auction?.currentPrice ?? auction?.startPrice) ?? "Pas encore d'enchère"} </Text>
                     <Text>Date de fin : {auction?.endDate}</Text>
                   </>
                 )}
@@ -1063,4 +1095,72 @@ const styles = StyleSheet.create({
     color: "#2563eb",
     fontWeight: "600",
   },
+  rentalHeader: {
+    backgroundColor: "#fff",
+    padding: 20,
+    borderRadius: 14,
+    marginBottom: 15,
+    alignItems: "center",
+
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+
+  rentalTitle: {
+    fontSize: 16,
+    color: "#6b7280",
+    marginBottom: 6,
+  },
+
+  rentalPrice: {
+    fontSize: 34,
+    fontWeight: "bold",
+    color: "#2563eb",
+    marginBottom: 12,
+  },
+
+  availableBadge: {
+    backgroundColor: "#ecfdf5",
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+
+  availableText: {
+    color: "#16a34a",
+    fontWeight: "600",
+  },
+
+  unavailableBadge: {
+    backgroundColor: "#fef2f2",
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+
+  unavailableText: {
+    color: "#dc2626",
+    fontWeight: "600",
+  },
+  footerText: {
+    marginTop: 12,
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#6b7280",
+    textAlign: "center",
+  },
+  rentalPriceLine: {
+  fontSize: 16,
+  color: "#6b7280",
+  textAlign: "center", // garde tout centré
+  marginBottom: 12,
+},
+
+rentalPriceValue: {
+  fontSize: 18,
+  fontWeight: "bold",
+  color: "#2563eb",
+},
 });

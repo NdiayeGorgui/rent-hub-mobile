@@ -13,7 +13,7 @@ export default function FaqScreen() {
   const [openId, setOpenId] = useState<number | null>(null);
   const insets = useSafeAreaInsets();
 
-  const themes = ["Tous", "Paiement", "Location", "Enchères", "Compte", "Sécurité", "Remboursement", "Compte","Abonnement", "Autre"];
+  const themes = ["Tous", "Paiement", "Location", "Enchères", "Compte", "Sécurité", "Remboursement", "Abonnement", "Autre"];
 
   useEffect(() => { loadFaqs(); }, []);
 
