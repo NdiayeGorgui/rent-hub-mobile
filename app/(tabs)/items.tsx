@@ -26,6 +26,8 @@ interface Item {
     title: string;
     description: string;
     city: string;
+    address: string;
+    postalCode: string;
     pricePerDay: number;
     active: boolean;
     type: "RENTAL" | "AUCTION";
@@ -203,7 +205,7 @@ export default function AdminItemsScreen() {
                                     size={14}
                                     color="#6b7280"
                                 />
-                                <Text style={styles.city}>{item.city}</Text>
+                                <Text style={styles.city}>{item.city}, {item.address}, {item.postalCode}</Text>
                             </View>
 
                             {item.type === "AUCTION" ? (

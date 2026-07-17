@@ -26,7 +26,7 @@ export default function UserProfile() {
                     data.publishedItems.map(async (item: any) => {
                         if (item.type === "AUCTION") {
                             try {
-                                const auction = await getAuctionAllByItemId (item.id);
+                                const auction = await getAuctionAllByItemId(item.id);
                                 return { ...item, currentPrice: auction?.currentPrice ?? null };
                             } catch {
                                 return { ...item, currentPrice: null };
@@ -61,31 +61,175 @@ export default function UserProfile() {
                 paddingHorizontal: 16,
             }}
         >
-            <Text style={{ fontSize: 24, fontWeight: "bold" }}>
-                {user.fullName}
-            </Text>
+            <View
+                style={{
+                    backgroundColor: "#fff",
+                    borderRadius: 18,
+                    padding: 18,
+                    marginBottom: 20,
+                    shadowColor: "#000",
+                    shadowOpacity: 0.06,
+                    shadowRadius: 8,
+                    elevation: 3,
+                }}
+            >
+                {/* Avatar + nom */}
+                <View
+                    style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        marginBottom: 15,
+                    }}
+                >
+                    <View
+                        style={{
+                            width: 58,
+                            height: 58,
+                            borderRadius: 29,
+                            backgroundColor: "#2563eb",
+                            justifyContent: "center",
+                            alignItems: "center",
+                            marginRight: 14,
+                        }}
+                    >
+                        <Text
+                            style={{
+                                color: "#fff",
+                                fontSize: 24,
+                                fontWeight: "bold",
+                            }}
+                        >
+                            {user.fullName?.charAt(0).toUpperCase()}
+                        </Text>
+                    </View>
 
-            <Text>@{user.username}</Text>
+                    <View style={{ flex: 1 }}>
+                        <Text
+                            style={{
+                                fontSize: 22,
+                                fontWeight: "700",
+                                color: "#111827",
+                            }}
+                        >
+                            {user.fullName}
+                        </Text>
 
-            <Text style={{ marginTop: 10 }}>
-                Ville : {user.city}
-            </Text>
+                        <Text
+                            style={{
+                                color: "#6b7280",
+                                marginTop: 2,
+                            }}
+                        >
+                            @{user.username}
+                        </Text>
+                    </View>
+                </View>
 
-            <Text>
-                {user.averageRating
-                    ? `${user.averageRating.toFixed(1)} ⭐ (${user.reviewsCount ?? 0} avis)`
-                    : "Aucune note"}
-            </Text>
-
-            {user.premium && (
-                <Text style={{ color: "#f59e0b" }}>
-                    💎 Premium
+                {/* Ville */}
+                <Text
+                    style={{
+                        color: "#6b7280",
+                        marginBottom: 12,
+                    }}
+                >
+                    📍 {user.city}
                 </Text>
-            )}
 
-            {user.badge && (
-                <Text>🏅 Badge : {user.badge}</Text>
-            )}
+                {/* Notes */}
+                <View
+                    style={{
+                        backgroundColor: "#f9fafb",
+                        borderRadius: 12,
+                        padding: 12,
+                    }}
+                >
+                    <Text
+                        style={{
+                            fontWeight: "600",
+                            color: "#111827",
+                            marginBottom: 8,
+                        }}
+                    >
+                        ⭐ Réputation
+                    </Text>
+
+                    <Text
+                        style={{
+                            color: "#374151",
+                            marginBottom: 4,
+                        }}
+                    >
+                        ⭐ {Number(user.ownerRating ?? 0).toFixed(1)}
+                        {" "}
+                        comme propriétaire
+                        {" "}
+                        ({user.ownerReviewsCount ?? 0} avis)
+                    </Text>
+
+                    <Text
+                        style={{
+                            color: "#374151",
+                        }}
+                    >
+                        ⭐ {Number(user.averageRating ?? 0).toFixed(1)}
+                        {" "}
+                        comme locataire
+                        {" "}
+                        ({user.reviewsCount ?? 0} avis)
+                    </Text>
+                </View>
+
+                {/* Badges */}
+                <View
+                    style={{
+                        flexDirection: "row",
+                        flexWrap: "wrap",
+                        marginTop: 15,
+                    }}
+                >
+                    {user.premium && (
+                        <View
+                            style={{
+                                backgroundColor: "#FEF3C7",
+                                paddingHorizontal: 12,
+                                paddingVertical: 6,
+                                borderRadius: 20,
+                                marginRight: 8,
+                                marginBottom: 8,
+                            }}
+                        >
+                            <Text
+                                style={{
+                                    color: "#92400E",
+                                    fontWeight: "600",
+                                }}
+                            >
+                                💎 Premium
+                            </Text>
+                        </View>
+                    )}
+
+                    {user.badge && (
+                        <View
+                            style={{
+                                backgroundColor: "#EEF2FF",
+                                paddingHorizontal: 12,
+                                paddingVertical: 6,
+                                borderRadius: 20,
+                            }}
+                        >
+                            <Text
+                                style={{
+                                    color: "#4338CA",
+                                    fontWeight: "600",
+                                }}
+                            >
+                                🏅 {user.badge}
+                            </Text>
+                        </View>
+                    )}
+                </View>
+            </View>
 
             <Text style={{ marginTop: 20, fontWeight: "bold" }}>
                 📦 Articles publiés

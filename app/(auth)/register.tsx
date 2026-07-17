@@ -46,13 +46,43 @@ export default function Register() {
     Alert.alert(title, message);
   };
 
+  const formatPhone = (value: string) => {
+    const digits = value.replace(/\D/g, "").slice(0, 10);
+
+    if (digits.length <= 3) {
+      return digits;
+    }
+
+    if (digits.length <= 6) {
+      return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+    }
+
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+  };
+
   const handleChange = (key: string, value: string) => {
+
+    if (key === "phone") {
+      value = formatPhone(value);
+    }
+
     setForm({ ...form, [key]: value });
   };
 
   const handleRegister = async () => {
     if (!form.email || !form.password || !form.username) {
       showAlert("Erreur", "Veuillez remplir les champs obligatoires");
+      return;
+    }
+
+    if (
+      form.phone &&
+      form.phone.replace(/\D/g, "").length !== 10
+    ) {
+      showAlert(
+        "Téléphone invalide",
+        "Veuillez entrer un numéro à 10 chiffres"
+      );
       return;
     }
 
@@ -126,7 +156,9 @@ export default function Register() {
                 keyboardType={
                   field.key === "email"
                     ? "email-address"
-                    : "default"
+                    : field.key === "phone"
+                      ? "phone-pad"
+                      : "default"
                 }
               />
             );

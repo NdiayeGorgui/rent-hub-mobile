@@ -56,6 +56,7 @@ export default function ItemDetails() {
   const [editCategoryId, setEditCategoryId] = useState("");
   const [editCity, setEditCity] = useState("");
   const [editAddress, setEditAddress] = useState("");
+  const [editPostalCode, setEditPostalCode] = useState("");
   const [editImages, setEditImages] = useState<any[]>([]);
   const [isWatching, setIsWatching] = useState<any[]>([]);
   const [statsVisible, setStatsVisible] = useState(false);
@@ -196,6 +197,7 @@ export default function ItemDetails() {
       setEditCategoryId(item.categoryId?.toString() || "");
       setEditCity(item.city || "");
       setEditAddress(item.address || "");
+      setEditPostalCode(item.postalCode || "");
       setEditImages(item.imageUrls.map((url: string) => ({ uri: BASE_URL + url })));
     }
   }, [item]);
@@ -345,7 +347,7 @@ export default function ItemDetails() {
       formData.append("data", JSON.stringify({
         title: editTitle, description: editDescription,
         categoryId: Number(editCategoryId), city: editCity,
-        address: editAddress, type: item.type,
+        address: editAddress,  postalCode: editPostalCode, type: item.type,
         pricePerDay: item.type === "RENTAL" ? Number(editPrice) : null,
       }));
 
@@ -475,6 +477,7 @@ export default function ItemDetails() {
                 )}
                 <TextInput placeholder="Ville" value={editCity} onChangeText={setEditCity} style={styles.input} />
                 <TextInput placeholder="Adresse" value={editAddress} onChangeText={setEditAddress} style={styles.input} />
+                <TextInput placeholder="Code postal" value={editPostalCode} onChangeText={setEditPostalCode} style={styles.input} />
 
                 <Text style={styles.section}>Images</Text>
                 <Pressable style={styles.imageButton} onPress={pickImages}>
@@ -702,7 +705,7 @@ export default function ItemDetails() {
         <View style={styles.card}>
           <Text style={styles.section}>📍 Localisation</Text>
           <Text>{item.city}</Text>
-          <Text>{item.address}</Text>
+          <Text>{item.address}, {item.postalCode}</Text>
         </View>
         <View style={styles.card}>
           <Text style={styles.section}>👤 Propriétaire</Text>

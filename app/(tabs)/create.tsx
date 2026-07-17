@@ -25,6 +25,7 @@ import * as SecureStore from "expo-secure-store";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BASE_URL } from "@/src/utils/baseURL";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import { generateDescription, suggestPrice } from "@/src/api/aiService";
 
 // Android uniquement
 let DateTimePickerAndroid: any = null;
@@ -44,6 +45,7 @@ export default function Create() {
   const [pricePerDay, setPricePerDay] = useState("");
   const [city, setCity] = useState("");
   const [address, setAddress] = useState("");
+  const [postalCode, setPostalCode] = useState("");
   const [images, setImages] = useState<any[]>([]);
   const [creating, setCreating] = useState(false);
 
@@ -57,6 +59,15 @@ export default function Create() {
   const [iosPickerMode, setIosPickerMode] = useState<"date" | "time">("date");
   const [tempDate, setTempDate] = useState(new Date());
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const [suggestingPrice, setSuggestingPrice] = useState(false);
+  const [priceSuggestion, setPriceSuggestion] = useState<{
+    min_price: number;
+    max_price: number;
+    recommended_price: number;
+    reasoning: string;
+  } | null>(null);
+  const [generatingDesc, setGeneratingDesc] = useState(false);
 
   const categories = [
     { id: 1, name: "Électronique" },
@@ -83,6 +94,62 @@ export default function Create() {
     checkPremium();
   }, []);
 
+  const handleGenerateDescription = async () => {
+    if (!title || !categoryId) {
+      Alert.alert("Info", "Entrez d'abord le titre et la catégorie");
+      return;
+    }
+    try {
+      setGeneratingDesc(true);
+      const desc = await generateDescription({
+        title,
+        category_id: Number(categoryId),
+        item_type: type,
+        price_per_day: pricePerDay ? Number(pricePerDay) : undefined,
+        city: city || undefined,
+      });
+      setDescription(desc);
+    } catch {
+      Alert.alert("Erreur", "Impossible de générer la description");
+    } finally {
+      setGeneratingDesc(false);
+    }
+  };
+
+  const formatPostalCode = (value: string) => {
+    const cleaned = value
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "")
+      .slice(0, 6);
+
+    if (cleaned.length <= 3) {
+      return cleaned;
+    }
+
+    return `${cleaned.slice(0, 3)} ${cleaned.slice(3)}`;
+  };
+
+  const handleSuggestPrice = async () => {
+    if (!title || !categoryId) {
+      Alert.alert("Info", "Entrez d'abord le titre et la catégorie");
+      return;
+    }
+    try {
+      setSuggestingPrice(true);
+      setPriceSuggestion(null);
+      const suggestion = await suggestPrice({
+        title,
+        category_id: Number(categoryId),
+        item_type: type, // ← "RENTAL" ou "AUCTION"
+      });
+      setPriceSuggestion(suggestion);
+    } catch {
+      Alert.alert("Erreur", "Impossible d'obtenir une suggestion");
+    } finally {
+      setSuggestingPrice(false);
+    }
+  };
+
   const validate = () => {
     const e: Record<string, string> = {};
     if (!title.trim()) e.title = "Requis";
@@ -90,6 +157,7 @@ export default function Create() {
     if (!categoryId) e.categoryId = "Requis";
     if (!city.trim()) e.city = "Requis";
     if (!address.trim()) e.address = "Requis";
+    if (!postalCode.trim()) e.postalCode = "Requis";
     if (type === "RENTAL" && !pricePerDay) e.pricePerDay = "Requis";
     if (type === "AUCTION" && !startPrice) e.startPrice = "Requis";
     if (type === "AUCTION" && !auctionEndDate) e.auctionEndDate = "Requis";
@@ -217,6 +285,16 @@ export default function Create() {
         );
         return;
       }
+      //todo
+      const postalRegex = /^[A-Z]\d[A-Z]\s\d[A-Z]\d$/;
+
+      if (!postalRegex.test(postalCode)) {
+        Alert.alert(
+          "Code postal invalide",
+          "Format attendu : H2A 4C1"
+        );
+        return;
+      }
 
       setCreating(true);
 
@@ -247,6 +325,7 @@ export default function Create() {
         auctionEndDate: type === "AUCTION" ? auctionEndDate : null,
         city,
         address,
+        postalCode,
         latitude,
         longitude,
       }));
@@ -291,7 +370,7 @@ export default function Create() {
 
       Alert.alert("Succès", "Item créé !");
       setTitle(""); setDescription(""); setCategoryId("");
-      setPricePerDay(""); setCity(""); setAddress("");
+      setPricePerDay(""); setCity(""); setAddress(""); setPostalCode("");
       setType("RENTAL"); setImages([]);
 
     } catch (error: any) {
@@ -348,17 +427,6 @@ export default function Create() {
           />
           {!errors.title && <View style={{ height: 10 }} />}
 
-          {/* Description */}
-          <FieldLabel label="Description" required error={errors.description} />
-          <TextInput
-            placeholder="Décrivez votre article en détail..."
-            value={description}
-            onChangeText={v => { setDescription(v); setErrors(p => ({ ...p, description: "" })); }}
-            style={[inputStyle(!!errors.description), { minHeight: 80, textAlignVertical: "top" }]}
-            multiline
-          />
-          {!errors.description && <View style={{ height: 10 }} />}
-
           {/* Catégorie */}
           <FieldLabel label="Catégorie" required error={errors.categoryId} />
           <View style={[
@@ -377,10 +445,95 @@ export default function Create() {
           </View>
           {!errors.categoryId && <View style={{ height: 10 }} />}
 
+          {/* Description */}
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+            <Text style={{ fontSize: 12, fontWeight: "600", color: errors.description ? "#ef4444" : "#374151" }}>
+              Description <Text style={{ color: "#ef4444" }}>*</Text>
+            </Text>
+            <TouchableOpacity
+              onPress={handleGenerateDescription}
+              disabled={generatingDesc || !title || !categoryId}
+              style={{
+                backgroundColor: generatingDesc || !title || !categoryId ? "#c4b5fd" : "#7c3aed",
+                paddingVertical: 6, paddingHorizontal: 12,
+                borderRadius: 8, flexDirection: "row", alignItems: "center", gap: 4,
+              }}
+            >
+              {generatingDesc
+                ? <><ActivityIndicator color="#fff" size="small" /><Text style={{ color: "#fff", fontSize: 11, fontWeight: "600" }}> Génération...</Text></>
+                : <Text style={{ color: "#fff", fontSize: 11, fontWeight: "600" }}>✨ Générer avec l'IA</Text>
+              }
+            </TouchableOpacity>
+          </View>
+          {errors.description ? <Text style={{ fontSize: 11, color: "#ef4444", marginBottom: 4 }}>⚠ {errors.description}</Text> : null}
+          <TextInput
+            placeholder="Décrivez votre article... ou utilisez l'IA ✨"
+            value={description}
+            onChangeText={v => { setDescription(v); setErrors(p => ({ ...p, description: "" })); }}
+            style={[inputStyle(!!errors.description), { minHeight: 100, textAlignVertical: "top" }]}
+            multiline
+          />
+          {!errors.description && <View style={{ height: 10 }} />}
+
+
+
           {/* Prix location */}
           {type === "RENTAL" && (
             <>
-              <FieldLabel label="Prix / jour ($)" required error={errors.pricePerDay} />
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                <Text style={{ fontSize: 12, fontWeight: "600", color: errors.pricePerDay ? "#ef4444" : "#374151" }}>
+                  Prix / jour ($) <Text style={{ color: "#ef4444" }}>*</Text>
+                </Text>
+                <TouchableOpacity
+                  onPress={handleSuggestPrice}
+                  disabled={suggestingPrice || !title || !categoryId}
+                  style={{
+                    backgroundColor: suggestingPrice || !title || !categoryId ? "#c4b5fd" : "#7c3aed",
+                    paddingVertical: 6, paddingHorizontal: 12,
+                    borderRadius: 8, flexDirection: "row", alignItems: "center", gap: 4,
+                  }}
+                >
+                  {suggestingPrice
+                    ? <><ActivityIndicator color="#fff" size="small" /><Text style={{ color: "#fff", fontSize: 11, fontWeight: "600" }}> Analyse...</Text></>
+                    : <Text style={{ color: "#fff", fontSize: 11, fontWeight: "600" }}>✨ Suggérer</Text>
+                  }
+                </TouchableOpacity>
+              </View>
+
+              {/* Suggestion IA */}
+              {priceSuggestion && (
+                <View style={{ backgroundColor: "#f5f3ff", borderRadius: 12, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: "#ddd6fe" }}>
+                  <Text style={{ fontSize: 11, fontWeight: "700", color: "#7c3aed", marginBottom: 8 }}>💡 Suggestion IA — Prix / jour</Text>
+                  <View style={{ flexDirection: "row", gap: 6, marginBottom: 8 }}>
+                    {[
+                      { label: "Min", value: priceSuggestion.min_price },
+                      { label: "Recommandé ⭐", value: priceSuggestion.recommended_price, highlight: true },
+                      { label: "Max", value: priceSuggestion.max_price },
+                    ].map(({ label, value, highlight }) => (
+                      <TouchableOpacity
+                        key={label}
+                        onPress={() => { setPricePerDay(String(value)); setErrors(p => ({ ...p, pricePerDay: "" })); setPriceSuggestion(null); }}
+                        style={{
+                          flex: 1, alignItems: "center", padding: 8, borderRadius: 10,
+                          backgroundColor: highlight ? "#7c3aed" : "#fff",
+                          borderWidth: 1, borderColor: highlight ? "#7c3aed" : "#ddd6fe",
+                        }}
+                      >
+                        <Text style={{ fontSize: 10, color: highlight ? "#e9d5ff" : "#6b7280", marginBottom: 2 }}>{label}</Text>
+                        <Text style={{ fontSize: 13, fontWeight: "700", color: highlight ? "#fff" : "#7c3aed" }}>{value} $</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  <Text style={{ fontSize: 11, color: "#6b7280", fontStyle: "italic", marginBottom: 6 }}>
+                    {priceSuggestion.reasoning}
+                  </Text>
+                  <TouchableOpacity onPress={() => setPriceSuggestion(null)}>
+                    <Text style={{ fontSize: 11, color: "#9ca3af" }}>✕ Fermer</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {errors.pricePerDay ? <Text style={{ fontSize: 11, color: "#ef4444", marginBottom: 4 }}>⚠ {errors.pricePerDay}</Text> : null}
               <TextInput
                 placeholder="Ex: 25"
                 value={pricePerDay}
@@ -397,7 +550,61 @@ export default function Create() {
             <View style={styles.auctionBox}>
               <Text style={styles.auctionBoxTitle}>🔥 Paramètres enchère</Text>
 
-              <FieldLabel label="Prix de départ ($)" required error={errors.startPrice} />
+              {/* Prix de départ + bouton IA */}
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                <Text style={{ fontSize: 12, fontWeight: "600", color: errors.startPrice ? "#ef4444" : "#374151" }}>
+                  Prix de départ ($) <Text style={{ color: "#ef4444" }}>*</Text>
+                </Text>
+                <TouchableOpacity
+                  onPress={handleSuggestPrice}
+                  disabled={suggestingPrice || !title || !categoryId}
+                  style={{
+                    backgroundColor: suggestingPrice || !title || !categoryId ? "#c4b5fd" : "#7c3aed",
+                    paddingVertical: 6, paddingHorizontal: 12,
+                    borderRadius: 8, flexDirection: "row", alignItems: "center", gap: 4,
+                  }}
+                >
+                  {suggestingPrice
+                    ? <><ActivityIndicator color="#fff" size="small" /><Text style={{ color: "#fff", fontSize: 11, fontWeight: "600" }}> Analyse...</Text></>
+                    : <Text style={{ color: "#fff", fontSize: 11, fontWeight: "600" }}>✨ Suggérer</Text>
+                  }
+                </TouchableOpacity>
+              </View>
+
+              {/* Suggestion IA enchère */}
+              {priceSuggestion && (
+                <View style={{ backgroundColor: "#f5f3ff", borderRadius: 12, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: "#ddd6fe" }}>
+                  <Text style={{ fontSize: 11, fontWeight: "700", color: "#7c3aed", marginBottom: 8 }}>💡 Suggestion IA — Prix de départ enchère</Text>
+                  <View style={{ flexDirection: "row", gap: 6, marginBottom: 8 }}>
+                    {[
+                      { label: "Min", value: priceSuggestion.min_price },
+                      { label: "Recommandé ⭐", value: priceSuggestion.recommended_price, highlight: true },
+                      { label: "Max", value: priceSuggestion.max_price },
+                    ].map(({ label, value, highlight }) => (
+                      <TouchableOpacity
+                        key={label}
+                        onPress={() => { setStartPrice(String(value)); setErrors(p => ({ ...p, startPrice: "" })); setPriceSuggestion(null); }}
+                        style={{
+                          flex: 1, alignItems: "center", padding: 8, borderRadius: 10,
+                          backgroundColor: highlight ? "#7c3aed" : "#fff",
+                          borderWidth: 1, borderColor: highlight ? "#7c3aed" : "#ddd6fe",
+                        }}
+                      >
+                        <Text style={{ fontSize: 10, color: highlight ? "#e9d5ff" : "#6b7280", marginBottom: 2 }}>{label}</Text>
+                        <Text style={{ fontSize: 13, fontWeight: "700", color: highlight ? "#fff" : "#7c3aed" }}>{value} $</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  <Text style={{ fontSize: 11, color: "#6b7280", fontStyle: "italic", marginBottom: 6 }}>
+                    {priceSuggestion.reasoning}
+                  </Text>
+                  <TouchableOpacity onPress={() => setPriceSuggestion(null)}>
+                    <Text style={{ fontSize: 11, color: "#9ca3af" }}>✕ Fermer</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {errors.startPrice ? <Text style={{ fontSize: 11, color: "#ef4444", marginBottom: 4 }}>⚠ {errors.startPrice}</Text> : null}
               <TextInput
                 placeholder="Ex: 50"
                 value={startPrice}
@@ -407,6 +614,7 @@ export default function Create() {
               />
               <View style={{ height: 10 }} />
 
+              {/* Prix de réserve */}
               <FieldLabel label="Prix de réserve ($) (optionnel)" />
               <TextInput
                 placeholder="Laissez vide si aucun"
@@ -417,20 +625,16 @@ export default function Create() {
               />
               <View style={{ height: 10 }} />
 
+              {/* Date de fin — inchangée */}
               <FieldLabel label="Date et heure de fin" required error={errors.auctionEndDate} />
               <TouchableOpacity
                 onPress={() => { openAuctionDatePicker(); setErrors(p => ({ ...p, auctionEndDate: "" })); }}
-                style={[
-                  styles.datePicker,
-                  errors.auctionEndDate && { borderColor: "#ef4444", backgroundColor: "#fef2f2" }
-                ]}
+                style={[styles.datePicker, errors.auctionEndDate && { borderColor: "#ef4444", backgroundColor: "#fef2f2" }]}
               >
                 <Text style={{ color: auctionEndDate ? "#111827" : "#9ca3af", fontSize: 14 }}>
                   📅 {formatDateLabel(auctionEndDate)}
                 </Text>
               </TouchableOpacity>
-
-              {/* iOS picker inline */}
               {Platform.OS === "ios" && showIOSPicker && (
                 <View>
                   <DateTimePicker
@@ -440,27 +644,16 @@ export default function Create() {
                     display="spinner"
                     onChange={(event: any, date?: Date) => {
                       if (!date) return;
-                      if (iosPickerMode === "date") {
-                        setTempDate(date);
-                        setIosPickerMode("time");
-                      } else {
-                        setAuctionEndDate(date.toISOString());
-                        setShowIOSPicker(false);
-                      }
+                      if (iosPickerMode === "date") { setTempDate(date); setIosPickerMode("time"); }
+                      else { setAuctionEndDate(date.toISOString()); setShowIOSPicker(false); }
                     }}
                   />
-                  <TouchableOpacity
-                    onPress={() => setShowIOSPicker(false)}
-                    style={{ alignItems: "center", padding: 10 }}
-                  >
+                  <TouchableOpacity onPress={() => setShowIOSPicker(false)} style={{ alignItems: "center", padding: 10 }}>
                     <Text style={{ color: "#ef4444", fontWeight: "600" }}>Annuler</Text>
                   </TouchableOpacity>
                 </View>
               )}
-
-              <Text style={{ fontSize: 11, color: "#9ca3af", marginTop: 4 }}>
-                Minimum 24h à partir de maintenant
-              </Text>
+              <Text style={{ fontSize: 11, color: "#9ca3af", marginTop: 4 }}>Minimum 24h à partir de maintenant</Text>
             </View>
           )}
 
@@ -483,6 +676,21 @@ export default function Create() {
             style={inputStyle(!!errors.address)}
           />
           {!errors.address && <View style={{ height: 10 }} />}
+          <View style={{ height: 10 }} />
+
+          {/* Code postal */}
+          <FieldLabel label="Code postal" required error={errors.postalCode} />
+          <TextInput
+            placeholder="Ex: H2X 1Y4"
+            value={postalCode}
+            autoCapitalize="characters"
+            onChangeText={v => {
+              setPostalCode(formatPostalCode(v));
+              setErrors(p => ({ ...p, postalCode: "" }));
+            }}
+            style={inputStyle(!!errors.postalCode)}
+          />
+          {!errors.postalCode && <View style={{ height: 10 }} />}
           <View style={{ height: 10 }} />
 
           {/* Images */}

@@ -368,7 +368,7 @@ export default function ItemDetails() {
                     </Text>
 
                     <Text style={styles.priceValue}>
-                      {formatPrice(auction.currentPrice ?? auction.startPrice)} 
+                      {formatPrice(auction.currentPrice ?? auction.startPrice)}
                     </Text>
 
                     {/* 🔥 AJOUTER ICI */}
@@ -383,7 +383,7 @@ export default function ItemDetails() {
                     )}
 
                     <Text>
-                      Prix initial : {formatPrice(auction.startPrice)} 
+                      Prix initial : {formatPrice(auction.startPrice)}
                     </Text>
 
                     <Text>
@@ -410,12 +410,14 @@ export default function ItemDetails() {
                 {item.type === "RENTAL" && (
                   <View style={styles.rentalHeader}>
 
-                    <Text style={styles.rentalPriceLine}>
-                      📦 Prix de location :{" "}
-                      <Text style={styles.rentalPriceValue}>
-                        {formatPrice(item.pricePerDay)} /jour
+                    <View style={{ alignItems: "center", marginBottom: 12 }}>
+                      <Text style={{ fontSize: 13, color: "#6b7280" }}>
+                        📦 Prix de location
                       </Text>
-                    </Text>
+                      <Text style={{ fontSize: 22, fontWeight: "800", color: "#2563eb", marginTop: 4 }}>
+                        {formatPrice(item.pricePerDay)} / jour
+                      </Text>
+                    </View>
 
                     {item.active ? (
                       <View style={styles.availableBadge}>
@@ -492,7 +494,7 @@ export default function ItemDetails() {
                 <View style={styles.card}>
                   <Text style={styles.section}>📍 Localisation</Text>
                   <Text>{item.city}</Text>
-                  <Text>{item.address}</Text>
+                  <Text>{item.postalCode}</Text>
                 </View>
                 {/* ── Propriétaire ── */}
                 <View style={styles.card}>
@@ -728,7 +730,7 @@ export default function ItemDetails() {
                 {/* ── Location (item actif seulement) ── */}
                 {item.type === "RENTAL" && !isOwner && item.active !== false && (
                   <View style={styles.card}>
-                  <View style={styles.card}></View>
+                    <View style={styles.card}></View>
                     <Text style={styles.section}>📅 Louer cet item</Text>
 
                     {/* ── Date début ── */}
@@ -845,7 +847,7 @@ export default function ItemDetails() {
                         {rentLoading ? "Envoi..." : "Louer maintenant"}
                       </Text>
                     </Pressable>
-                 </View>
+                  </View>
                 )}
 
                 {/* Item désactivé */}
@@ -1152,15 +1154,15 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   rentalPriceLine: {
-  fontSize: 16,
-  color: "#6b7280",
-  textAlign: "center", // garde tout centré
-  marginBottom: 12,
-},
+    fontSize: 16,
+    color: "#6b7280",
+    textAlign: "center", // garde tout centré
+    marginBottom: 12,
+  },
 
-rentalPriceValue: {
-  fontSize: 18,
-  fontWeight: "bold",
-  color: "#2563eb",
-},
+  rentalPriceValue: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#2563eb",
+  },
 });

@@ -239,14 +239,14 @@ export default function Home() {
 
   const getTimeLeft = (endDate?: string | null) => {
     if (!endDate) return "";
-    const diff = new Date(endDate).getTime() - new Date().getTime();
+    const diff = new Date(endDate).getTime() - Date.now();
     if (diff <= 0) return "terminée";
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
     const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
     const minutes = Math.floor((diff / (1000 * 60)) % 60);
     const seconds = Math.floor((diff / 1000) % 60);
-    if (days > 0) return `${days}j ${hours}h ${minutes}m ${seconds}s`;
-    if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
+    if (days > 0) return `${days}j ${hours}h`;
+    if (hours > 0) return `${hours}h ${minutes}m`;
     if (minutes > 0) return `${minutes}m ${seconds}s`;
     return `${seconds}s`;
   };
@@ -498,7 +498,7 @@ export default function Home() {
                     <Text style={styles.priceBadgeText}>
                       {item.type === "AUCTION"
                         ? `${formatPrice(auctionData[item.id]?.startPrice ?? 0)} `
-                        : `${formatPrice(item.pricePerDay)} /jour`}
+                        : `${formatPrice(item.pricePerDay)} / jour`}
                     </Text>
                   </View>
                 </View>
@@ -511,13 +511,24 @@ export default function Home() {
                   </Text>
 
                   <Text style={styles.city}>
-                    📍 {item.city}
+                    📍 {item.city},  {item.postalCode ? `${item.postalCode}` : ""}
                   </Text>
 
                   {item?.username && (
-                    <Text style={styles.username}>
-                      👤 {item?.username}
-                    </Text>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 3 }}>
+                      <Text style={styles.username}>
+                        👤 {item?.username}
+                      </Text>
+
+                      <Text style={styles.ratingStars}>
+                        {"★".repeat(Math.round(item.ownerRating ?? 0))}
+                        {"☆".repeat(5 - Math.round(item.ownerRating ?? 0))}
+                        {" "}
+                        <Text style={styles.ratingText}>
+                          {(item.ownerRating ?? 0).toFixed(1)} ({item.ownerReviewsCount ?? 0} avis)
+                        </Text>
+                      </Text>
+                    </View>
                   )}
 
                   <Text
@@ -527,49 +538,35 @@ export default function Home() {
                     {item.description}
                   </Text>
 
-                  {/* STATS ENCHÈRE */}
-                  {item.type === "AUCTION" && auctionData[item.id] && (
-                    <>
-                      <View style={styles.separator} />
-
-                      {auctionData[item.id]?.currentPrice != null && (
-                        <Text style={styles.auctionInfo}>
-                          💰 Actuel : {formatPrice(auctionData[item.id].currentPrice)} 
-                        </Text>
-                      )}
-
-                      <View style={styles.auctionStatsRow}>
-                        <Text style={styles.auctionStat}>
-                          👀 {auctionData[item.id]?.views ?? 0}
-                        </Text>
-
-                        <Text style={styles.auctionStat}>
-                          ⭐ {auctionData[item.id]?.watchers ?? 0}
-                        </Text>
-
-                        <Text style={styles.auctionStat}>
-                          👥 {auctionData[item.id]?.participants ?? 0}
-                        </Text>
-                      </View>
-
-                      {auctionData[item.id]?.endDate && (
-                        <Text style={styles.timer}>
-                          ⏳ {getTimeLeft(auctionData[item.id].endDate)}
-                        </Text>
-                      )}
-                    </>
-                  )}
-
                   {item.distanceLabel && (
                     <Text style={styles.distanceBadge}>
                       📍 {item.distanceLabel}
                     </Text>
                   )}
+
+                  {/* STATS ENCHÈRE */}
+                  {item.type === "AUCTION" && auctionData[item.id] && (
+                    <>
+                      <View style={styles.separator} />
+                      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, paddingHorizontal: 8, paddingVertical: 4 }}>
+                        {auctionData[item.id]?.currentPrice != null && (
+                          <Text style={styles.auctionInfo}>💰 {formatPrice(auctionData[item.id].currentPrice)}</Text>
+                        )}
+                        <Text style={styles.auctionStat}>👀 {auctionData[item.id]?.views ?? 0}</Text>
+                        <Text style={styles.auctionStat}>⭐ {auctionData[item.id]?.watchers ?? 0}</Text>
+                        <Text style={styles.auctionStat}>👥 {auctionData[item.id]?.participants ?? 0}</Text>
+                        {auctionData[item.id]?.endDate && (
+                          <Text style={styles.timer}>⏳ {getTimeLeft(auctionData[item.id].endDate)}</Text>
+                        )}
+                      </View>
+                    </>
+                  )}
+
+
                   {/* Disponibilité / Popularité */}
                   {item.type === "RENTAL" && (
                     <>
-                      <View style={styles.separator} />
-
+                     
                       <View style={styles.footerInfo}>
                         <Text style={styles.footerText}>
                           📅 Disponible
@@ -577,9 +574,9 @@ export default function Home() {
 
                         <Text style={styles.footerText}>
                           {(item.rentalsCount ?? 0) > 10
-                            ? "🔥 Très populaire"
+                            ? "🔥 Populaire"
                             : (item.rentalsCount ?? 0) > 5
-                              ? "🚀 En forte demande"
+                              ? "🚀 En demande"
                               : (item.rentalsCount ?? 0) > 0
                                 ? "✅ Déjà testé"
                                 : "🆕 Nouvelle annonce"}
@@ -637,7 +634,6 @@ const styles = StyleSheet.create({
 
   username: {
     color: "#6b7280",
-    marginTop: 3,
     fontSize: 13,
     fontWeight: "600",
   },
@@ -820,7 +816,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   timer: {
-    marginTop: 3,
     color: "#ef4444",
     fontWeight: "600",
   },
@@ -873,5 +868,22 @@ const styles = StyleSheet.create({
     color: "#6b7280",
     fontWeight: "500",
   },
+  auctionHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginVertical: 6,
+  },
+
+  ratingStars: {
+  fontSize: 11,
+  color: "#eab308", // jaune comme le web (yellow-500)
+  fontWeight: "600",
+},
+ratingText: {
+  fontSize: 10,
+  color: "#6b7280", // gray-500
+  fontWeight: "500",
+},
 
 });

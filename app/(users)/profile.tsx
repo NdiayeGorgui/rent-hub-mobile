@@ -11,10 +11,12 @@ import { fetchMyRentals } from "@/src/api/rentalService";
 import { getMyPayments, payPenalty } from "@/src/api/paymentService.web";
 import { handleMobilePayment } from "@/src/api/stripeMobile";
 import { getAuctionPublicByItemId } from "@/src/api/auctionService";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function Profile() {
   const { user } = useAuth();
   const isAdmin = user?.roles?.includes("ROLE_ADMIN");
+   const insets = useSafeAreaInsets();
 
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -67,11 +69,11 @@ export default function Profile() {
           icon: "🔥",
           label: "Frais d'enchère"
         };
-       case "AUCTION_CANCELLATION_FEE":
-                return {
-                    icon: "💳",
-                    label: "Frais d'annulation enchère"
-                };
+      case "AUCTION_CANCELLATION_FEE":
+        return {
+          icon: "💳",
+          label: "Frais d'annulation enchère"
+        };
 
       case "AUCTION_REFUND":
         return {
@@ -219,7 +221,10 @@ export default function Profile() {
   );
 
   if (penaltyStep === "payment") return (
-    <ScrollView style={styles.container}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}
+    >
       <TouchableOpacity onPress={() => setPenaltyStep("idle")}>
         <Text style={styles.backLink}>← Retour</Text>
       </TouchableOpacity>
@@ -257,6 +262,7 @@ export default function Profile() {
   return (
     <ScrollView
       style={styles.container}
+      contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
       {/* ── Identité ── */}
@@ -301,7 +307,7 @@ export default function Profile() {
       )}
 
       {/* ── Items publiés ── */}
-     
+
 
       {/* ── Paiements ── */}
       {!isAdmin && (
